@@ -25,6 +25,7 @@ function withTimeout<T>(operation: Promise<T>, timeoutMs: number, label: string)
 }
 
 export class NostrToolsRemoteSigner implements RemoteSigner {
+  readonly kind = "nip46" as const;
   constructor(
     private readonly signer: BunkerSigner,
     private readonly timeoutMs: number,
@@ -141,6 +142,7 @@ export class Nip46SignerFactory {
 }
 
 export class SimulatedSigner implements RemoteSigner {
+  readonly kind = "simulated" as const;
   private readonly secretKey = generateSecretKey();
 
   async getPublicKey(): Promise<string> {

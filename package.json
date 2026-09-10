@@ -1,7 +1,7 @@
 {
   "name": "nostr-signer-chatgpt",
-  "version": "0.1.0",
-  "description": "Local-first NIP-46 signer bridge for ChatGPT Work and Codex",
+  "version": "0.2.0",
+  "description": "Local-first NIP-07 and NIP-46 signer bridge for ChatGPT Work and Codex",
   "type": "module",
   "private": true,
   "license": "Apache-2.0",

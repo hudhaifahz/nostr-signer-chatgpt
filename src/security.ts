@@ -8,7 +8,9 @@ const SENSITIVE_KEY_PATTERN =
 
 export class UnsafeSecretInputError extends Error {
   constructor() {
-    super("Secret-key material is not accepted. Use a bunker: or nostrconnect: pairing flow.");
+    super(
+      "Secret-key material is not accepted. Use a NIP-07 browser extension or NIP-46 pairing flow.",
+    );
     this.name = "UnsafeSecretInputError";
   }
 }

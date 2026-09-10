@@ -20,6 +20,7 @@ export type RelayAck = {
 };
 
 export interface RemoteSigner {
+  readonly kind: "nip07" | "nip46" | "simulated";
   getPublicKey(): Promise<string>;
   signEvent(event: EventTemplate): Promise<SignedEvent>;
   nip44Encrypt(pubkey: string, plaintext: string): Promise<string>;
@@ -38,6 +39,7 @@ export type SessionState = "disconnected" | "pairing" | "connected" | "expired" 
 export type SessionView = {
   state: SessionState;
   pubkey?: string;
+  signerType?: RemoteSigner["kind"];
   expiresAt?: string;
   detail?: string;
 };

@@ -23,10 +23,31 @@ function failure(error: unknown, logger: SafeLogger) {
 
 export function createMcpServer(service: NostrSignerService, logger: SafeLogger): McpServer {
   const server = new McpServer(
-    { name: "nostr-signer-chatgpt", version: "0.1.0" },
+    { name: "nostr-signer-chatgpt", version: "0.2.0" },
     {
       instructions:
-        "Never ask for or accept an nsec/private key. Pair only with bunker:// or nostrconnect://. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the remote signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned.",
+        "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned.",
+    },
+  );
+
+  server.registerTool(
+    "get_setup_url",
+    {
+      title: "Get signer setup URL",
+      description:
+        "Return the loopback-only page used to connect a NIP-07 browser extension or an advanced NIP-46 signer.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    async () => {
+      try {
+        return result({
+          url: service.getSetupUrl(),
+          recommended: "Open this URL in the browser profile that has Alby or nos2x installed.",
+        });
+      } catch (error) {
+        return failure(error, logger);
+      }
     },
   );
 
@@ -34,7 +55,7 @@ export function createMcpServer(service: NostrSignerService, logger: SafeLogger)
     "get_signer_status",
     {
       title: "Get signer status",
-      description: "Check whether a user-controlled NIP-46 signer is paired.",
+      description: "Check whether a user-controlled NIP-07 or NIP-46 signer is connected.",
       inputSchema: {},
     },
     async () => result(service.status()),
@@ -45,7 +66,7 @@ export function createMcpServer(service: NostrSignerService, logger: SafeLogger)
     {
       title: "Begin signer pairing",
       description:
-        "Create a nostrconnect:// URI for the user to scan or open in their signer. Never accepts an nsec.",
+        "Advanced fallback: create a nostrconnect:// URI for the user to scan or open in a remote signer. Never accepts an nsec.",
       inputSchema: { relays: relayList },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },

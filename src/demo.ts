@@ -1,4 +1,5 @@
 import { NostrSignerService } from "./service.js";
+import { Nip07Bridge } from "./nip07.js";
 import { SignerSession } from "./session.js";
 import { SafeLogger } from "./security.js";
 import { SimulatedRelayGateway } from "./relays.js";
@@ -8,7 +9,9 @@ const logger = new SafeLogger();
 const relay = new SimulatedRelayGateway();
 const session = new SignerSession(logger);
 const unsupportedFactory = {} as Nip46SignerFactory;
-const service = new NostrSignerService(session, unsupportedFactory, relay, ["ws://127.0.0.1:7777"]);
+const service = new NostrSignerService(session, unsupportedFactory, new Nip07Bridge(), relay, [
+  "ws://127.0.0.1:7777",
+]);
 
 await session.attach(new SimulatedSigner());
 const prepared = service.prepareNote("Hello from the safe simulated Nostr signer demo.");

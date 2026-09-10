@@ -7197,6 +7197,12 @@ var require_dist = __commonJS({
   }
 });
 
+// src/nip07.ts
+import { randomUUID } from "node:crypto";
+
+// src/events.ts
+import { createHash } from "node:crypto";
+
 // node_modules/@noble/hashes/utils.js
 function isBytes(a) {
   return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
@@ -9456,30 +9462,9 @@ var schnorr = /* @__PURE__ */ (() => {
   };
 })();
 
-// node_modules/nostr-tools/lib/esm/pool.js
+// node_modules/nostr-tools/lib/esm/pure.js
 var utf8Decoder = new TextDecoder("utf-8");
 var utf8Encoder = new TextEncoder();
-function normalizeURL(url) {
-  try {
-    if (url.indexOf("://") === -1)
-      url = "wss://" + url;
-    let p = new URL(url);
-    if (p.protocol === "http:")
-      p.protocol = "ws:";
-    else if (p.protocol === "https:")
-      p.protocol = "wss:";
-    p.pathname = p.pathname.replace(/\/+/g, "/");
-    if (p.pathname.endsWith("/"))
-      p.pathname = p.pathname.slice(0, -1);
-    if (p.port === "80" && p.protocol === "ws:" || p.port === "443" && p.protocol === "wss:")
-      p.port = "";
-    p.searchParams.sort();
-    p.hash = "";
-    return p.toString();
-  } catch (e) {
-    throw new Error(`Invalid URL: ${url}`);
-  }
-}
 function isHex32(input) {
   if (input.length !== 64)
     return false;
@@ -9566,6 +9551,390 @@ var generateSecretKey = i.generateSecretKey;
 var getPublicKey = i.getPublicKey;
 var finalizeEvent = i.finalizeEvent;
 var verifyEvent = i.verifyEvent;
+
+// src/security.ts
+var NSEC_PATTERN = /\bnsec1[023456789acdefghjklmnpqrstuvwxyz]{20,}\b/giu;
+var BUNKER_SECRET_PATTERN = /((?:bunker|nostrconnect):\/\/[^\s"']*?[?&]secret=)[^&\s"']+/giu;
+var BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/-]+=*/giu;
+var SERIALIZED_SENSITIVE_VALUE_PATTERN = /("(?:content|plaintext|ciphertext)"\s*:\s*)"(?:[^"\\]|\\.)*"/giu;
+var SENSITIVE_KEY_PATTERN = /^(?:nsec|private_?key|secret_?key|auth_?token|access_?token|plaintext|content)$/iu;
+var UnsafeSecretInputError = class extends Error {
+  constructor() {
+    super(
+      "Secret-key material is not accepted. Use a NIP-07 browser extension or NIP-46 pairing flow."
+    );
+    this.name = "UnsafeSecretInputError";
+  }
+};
+function containsNsecLike(value) {
+  if (typeof value === "string") {
+    NSEC_PATTERN.lastIndex = 0;
+    return NSEC_PATTERN.test(value);
+  }
+  if (Array.isArray(value)) return value.some(containsNsecLike);
+  if (value && typeof value === "object") {
+    return Object.entries(value).some(
+      ([key, child]) => /^(?:nsec|private_?key|secret_?key)$/iu.test(key) || containsNsecLike(child)
+    );
+  }
+  return false;
+}
+function assertNoNsec(value) {
+  if (containsNsecLike(value)) throw new UnsafeSecretInputError();
+}
+function redactString(value) {
+  NSEC_PATTERN.lastIndex = 0;
+  BUNKER_SECRET_PATTERN.lastIndex = 0;
+  BEARER_PATTERN.lastIndex = 0;
+  return value.replace(NSEC_PATTERN, "[REDACTED_NSEC]").replace(BUNKER_SECRET_PATTERN, "$1[REDACTED]").replace(BEARER_PATTERN, "Bearer [REDACTED]").replace(SERIALIZED_SENSITIVE_VALUE_PATTERN, '$1"[REDACTED]"');
+}
+function redact(value, key = "") {
+  if (SENSITIVE_KEY_PATTERN.test(key)) return "[REDACTED]";
+  if (typeof value === "string") return redactString(value);
+  if (Array.isArray(value)) return value.map((entry) => redact(entry));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, child]) => [childKey, redact(child, childKey)])
+    );
+  }
+  return value;
+}
+var SafeLogger = class {
+  constructor(sink = (line) => process.stderr.write(`${line}
+`)) {
+    this.sink = sink;
+  }
+  sink;
+  info(message, fields = {}) {
+    this.write("info", message, fields);
+  }
+  error(message, error2, fields = {}) {
+    const safeError = error2 instanceof Error ? { name: error2.name, message: redactString(error2.message) } : redact(error2);
+    this.write("error", message, { ...fields, error: safeError });
+  }
+  write(level, message, fields) {
+    const safeFields = redact(fields);
+    const line = JSON.stringify({
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      level,
+      message: redactString(message),
+      ...safeFields
+    });
+    this.sink(line);
+  }
+};
+function publicError(error2) {
+  if (error2 instanceof UnsafeSecretInputError) return error2;
+  const message = error2 instanceof Error ? redactString(error2.message) : "Unexpected error";
+  return new Error(message);
+}
+
+// src/events.ts
+var HEX_32 = /^[0-9a-f]{64}$/u;
+var HEX_64 = /^[0-9a-f]{128}$/u;
+var MAX_CONTENT_BYTES = 65536;
+var MAX_TAGS = 128;
+var MAX_TAG_PARTS = 16;
+var MAX_TAG_PART_BYTES = 4096;
+function exactKeys(value, allowed) {
+  const keys = Object.keys(value).sort();
+  const expected = [...allowed].sort();
+  return keys.length === expected.length && keys.every((key, index) => key === expected[index]);
+}
+function assertHexPubkey(pubkey) {
+  if (!HEX_32.test(pubkey)) throw new Error("Expected a lowercase 64-character hex public key.");
+}
+function assertEventTemplate(value, nowSeconds = Math.floor(Date.now() / 1e3)) {
+  assertNoNsec(value);
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Event must be an object.");
+  if (!exactKeys(value, ["content", "created_at", "kind", "tags"]))
+    throw new Error("Unsigned event has unexpected or missing fields.");
+  const event = value;
+  if (!Number.isSafeInteger(event.kind) || event.kind < 0 || event.kind > 65535) {
+    throw new Error("Event kind must be an integer from 0 through 65535.");
+  }
+  if (!Number.isSafeInteger(event.created_at))
+    throw new Error("Event created_at must be an integer Unix timestamp.");
+  const age = nowSeconds - event.created_at;
+  if (age > 300 || age < -60) throw new Error("Event timestamp is stale or too far in the future.");
+  if (typeof event.content !== "string" || Buffer.byteLength(event.content, "utf8") > MAX_CONTENT_BYTES) {
+    throw new Error("Event content must be a string no larger than 65536 UTF-8 bytes.");
+  }
+  if (!Array.isArray(event.tags) || event.tags.length > MAX_TAGS)
+    throw new Error("Event tags are invalid or exceed the limit.");
+  for (const tag of event.tags) {
+    if (!Array.isArray(tag) || tag.length === 0 || tag.length > MAX_TAG_PARTS)
+      throw new Error("Each event tag must be a non-empty string array.");
+    for (const part of tag) {
+      if (typeof part !== "string" || Buffer.byteLength(part, "utf8") > MAX_TAG_PART_BYTES) {
+        throw new Error("Event tag values must be bounded strings.");
+      }
+    }
+  }
+}
+function assertSignedEvent(value) {
+  assertNoNsec(value);
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Signed event must be an object.");
+  if (!exactKeys(value, ["content", "created_at", "id", "kind", "pubkey", "sig", "tags"])) {
+    throw new Error("Signed event has unexpected or missing fields.");
+  }
+  const event = value;
+  if (!HEX_32.test(event.id) || !HEX_32.test(event.pubkey) || !HEX_64.test(event.sig))
+    throw new Error("Signed event has malformed identifiers.");
+  if (!validateEvent(event) || !verifyEvent(event))
+    throw new Error("Signed event failed Nostr hash/signature verification.");
+}
+function bindSignedEvent(template, signed, expectedPubkey) {
+  assertEventTemplate(template, template.created_at);
+  assertSignedEvent(signed);
+  if (signed.pubkey !== expectedPubkey)
+    throw new Error("Signer returned an event for a different public key.");
+  const returnedTemplate = {
+    kind: signed.kind,
+    created_at: signed.created_at,
+    tags: signed.tags,
+    content: signed.content
+  };
+  if (canonicalEventTemplate(returnedTemplate) !== canonicalEventTemplate(template)) {
+    throw new Error("Signer returned an event that does not match the approved request.");
+  }
+}
+function canonicalEventTemplate(event) {
+  return JSON.stringify([event.kind, event.created_at, event.tags, event.content]);
+}
+function eventFingerprint(event) {
+  return createHash("sha256").update(canonicalEventTemplate(event)).digest("hex");
+}
+function createKindOneNote(content, nowSeconds = Math.floor(Date.now() / 1e3)) {
+  const event = { kind: 1, created_at: nowSeconds, tags: [], content };
+  assertEventTemplate(event, nowSeconds);
+  return event;
+}
+
+// src/nip07.ts
+var Nip07Bridge = class {
+  constructor(timeoutMs = 12e4) {
+    this.timeoutMs = timeoutMs;
+  }
+  timeoutMs;
+  generation = 0;
+  pubkey;
+  pending;
+  register(pubkey) {
+    assertHexPubkey(pubkey);
+    this.rejectPending("A newer browser-extension session replaced this request.");
+    const generation = ++this.generation;
+    this.pubkey = pubkey;
+    return new Nip07RemoteSigner(this, generation, pubkey);
+  }
+  next() {
+    return this.pending ? structuredClone(this.pending.operation) : null;
+  }
+  respond(requestId, result2, rejected = false) {
+    const pending = this.pending;
+    if (!pending || pending.operation.requestId !== requestId) {
+      throw new Error("The browser-extension request is unknown or already completed.");
+    }
+    this.pending = void 0;
+    clearTimeout(pending.timer);
+    if (rejected) {
+      pending.reject(new Error("The browser extension rejected the request."));
+      return;
+    }
+    pending.resolve(result2);
+  }
+  request(generation, operation) {
+    if (generation !== this.generation || !this.pubkey)
+      return Promise.reject(new Error("The browser-extension signer is disconnected."));
+    if (this.pending)
+      return Promise.reject(new Error("Another browser-extension request is awaiting approval."));
+    const requestId = randomUUID();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (this.pending?.operation.requestId === requestId) this.pending = void 0;
+        reject(new Error("The browser-extension approval timed out."));
+      }, this.timeoutMs);
+      this.pending = {
+        operation: { ...structuredClone(operation), requestId },
+        resolve,
+        reject,
+        timer
+      };
+    });
+  }
+  close(generation) {
+    if (generation !== void 0 && generation !== this.generation) return;
+    ++this.generation;
+    this.pubkey = void 0;
+    this.rejectPending("The browser-extension signer disconnected.");
+  }
+  rejectPending(message) {
+    if (!this.pending) return;
+    clearTimeout(this.pending.timer);
+    this.pending.reject(new Error(message));
+    this.pending = void 0;
+  }
+};
+var Nip07RemoteSigner = class {
+  constructor(bridge, generation, pubkey) {
+    this.bridge = bridge;
+    this.generation = generation;
+    this.pubkey = pubkey;
+  }
+  bridge;
+  generation;
+  pubkey;
+  kind = "nip07";
+  async getPublicKey() {
+    return this.pubkey;
+  }
+  async signEvent(event) {
+    assertEventTemplate(event);
+    return await this.bridge.request(this.generation, {
+      method: "sign_event",
+      event
+    });
+  }
+  async nip44Encrypt(pubkey, plaintext) {
+    assertHexPubkey(pubkey);
+    assertNoNsec(plaintext);
+    const result2 = await this.bridge.request(this.generation, {
+      method: "nip44_encrypt",
+      pubkey,
+      plaintext
+    });
+    if (typeof result2 !== "string" || result2.length > 1e5)
+      throw new Error("The browser extension returned an invalid NIP-44 ciphertext.");
+    return result2;
+  }
+  async nip44Decrypt(pubkey, ciphertext) {
+    assertHexPubkey(pubkey);
+    const result2 = await this.bridge.request(this.generation, {
+      method: "nip44_decrypt",
+      pubkey,
+      ciphertext
+    });
+    if (typeof result2 !== "string" || Buffer.byteLength(result2, "utf8") > 65536)
+      throw new Error("The browser extension returned invalid NIP-44 plaintext.");
+    return result2;
+  }
+  async close() {
+    this.bridge.close(this.generation);
+  }
+};
+
+// node_modules/nostr-tools/lib/esm/pool.js
+var utf8Decoder2 = new TextDecoder("utf-8");
+var utf8Encoder2 = new TextEncoder();
+function normalizeURL(url) {
+  try {
+    if (url.indexOf("://") === -1)
+      url = "wss://" + url;
+    let p = new URL(url);
+    if (p.protocol === "http:")
+      p.protocol = "ws:";
+    else if (p.protocol === "https:")
+      p.protocol = "wss:";
+    p.pathname = p.pathname.replace(/\/+/g, "/");
+    if (p.pathname.endsWith("/"))
+      p.pathname = p.pathname.slice(0, -1);
+    if (p.port === "80" && p.protocol === "ws:" || p.port === "443" && p.protocol === "wss:")
+      p.port = "";
+    p.searchParams.sort();
+    p.hash = "";
+    return p.toString();
+  } catch (e) {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+}
+function isHex322(input) {
+  if (input.length !== 64)
+    return false;
+  for (let i22 = 0; i22 < 64; i22++) {
+    let cc = input.charCodeAt(i22);
+    if (isNaN(cc) || cc < 48 || cc > 102 || cc > 57 && cc < 97) {
+      return false;
+    }
+  }
+  return true;
+}
+var verifiedSymbol2 = /* @__PURE__ */ Symbol("verified");
+var isRecord2 = (obj) => obj instanceof Object;
+function validateEvent2(event) {
+  if (!isRecord2(event))
+    return false;
+  if (typeof event.kind !== "number")
+    return false;
+  if (typeof event.content !== "string")
+    return false;
+  if (typeof event.created_at !== "number")
+    return false;
+  if (typeof event.pubkey !== "string")
+    return false;
+  if (!isHex322(event.pubkey))
+    return false;
+  if (!Array.isArray(event.tags))
+    return false;
+  for (let i22 = 0; i22 < event.tags.length; i22++) {
+    let tag = event.tags[i22];
+    if (!Array.isArray(tag))
+      return false;
+    for (let j = 0; j < tag.length; j++) {
+      if (typeof tag[j] !== "string")
+        return false;
+    }
+  }
+  return true;
+}
+var JS2 = class {
+  generateSecretKey() {
+    return schnorr.utils.randomSecretKey();
+  }
+  getPublicKey(secretKey) {
+    return bytesToHex(schnorr.getPublicKey(secretKey));
+  }
+  finalizeEvent(t, secretKey) {
+    const event = t;
+    event.pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
+    event.id = getEventHash2(event);
+    event.sig = bytesToHex(schnorr.sign(hexToBytes(getEventHash2(event)), secretKey));
+    event[verifiedSymbol2] = true;
+    return event;
+  }
+  verifyEvent(event) {
+    if (typeof event[verifiedSymbol2] === "boolean")
+      return event[verifiedSymbol2];
+    try {
+      const hash = getEventHash2(event);
+      if (hash !== event.id) {
+        event[verifiedSymbol2] = false;
+        return false;
+      }
+      const valid = schnorr.verify(hexToBytes(event.sig), hexToBytes(hash), hexToBytes(event.pubkey));
+      event[verifiedSymbol2] = valid;
+      return valid;
+    } catch (err) {
+      event[verifiedSymbol2] = false;
+      return false;
+    }
+  }
+};
+function serializeEvent2(evt) {
+  if (!validateEvent2(evt))
+    throw new Error("can't serialize event with wrong or missing properties");
+  return JSON.stringify([0, evt.pubkey, evt.created_at, evt.kind, evt.tags, evt.content]);
+}
+function getEventHash2(event) {
+  let eventHash = sha256(utf8Encoder2.encode(serializeEvent2(event)));
+  return bytesToHex(eventHash);
+}
+var i2 = new JS2();
+var generateSecretKey2 = i2.generateSecretKey;
+var getPublicKey2 = i2.getPublicKey;
+var finalizeEvent2 = i2.finalizeEvent;
+var verifyEvent2 = i2.verifyEvent;
 var ClientAuth = 22242;
 function matchFilter(filter, event) {
   if (filter.ids && filter.ids.indexOf(event.id) === -1) {
@@ -10171,7 +10540,7 @@ var Subscription = class {
 };
 var M = 256;
 var HLL_HEX_LENGTH = M * 2;
-var utf8Encoder2 = new TextEncoder();
+var utf8Encoder22 = new TextEncoder();
 function getCountManyFilter(target, directive) {
   switch (directive) {
     case "reactions":
@@ -10558,261 +10927,9 @@ try {
 }
 var SimplePool = class extends AbstractSimplePool {
   constructor(options) {
-    super({ verifyEvent, websocketImplementation: _WebSocket, maxWaitForConnection: 3e3, ...options });
+    super({ verifyEvent: verifyEvent2, websocketImplementation: _WebSocket, maxWaitForConnection: 3e3, ...options });
   }
 };
-
-// src/events.ts
-import { createHash } from "node:crypto";
-
-// node_modules/nostr-tools/lib/esm/pure.js
-var utf8Decoder2 = new TextDecoder("utf-8");
-var utf8Encoder3 = new TextEncoder();
-function isHex322(input) {
-  if (input.length !== 64)
-    return false;
-  for (let i22 = 0; i22 < 64; i22++) {
-    let cc = input.charCodeAt(i22);
-    if (isNaN(cc) || cc < 48 || cc > 102 || cc > 57 && cc < 97) {
-      return false;
-    }
-  }
-  return true;
-}
-var verifiedSymbol2 = /* @__PURE__ */ Symbol("verified");
-var isRecord2 = (obj) => obj instanceof Object;
-function validateEvent2(event) {
-  if (!isRecord2(event))
-    return false;
-  if (typeof event.kind !== "number")
-    return false;
-  if (typeof event.content !== "string")
-    return false;
-  if (typeof event.created_at !== "number")
-    return false;
-  if (typeof event.pubkey !== "string")
-    return false;
-  if (!isHex322(event.pubkey))
-    return false;
-  if (!Array.isArray(event.tags))
-    return false;
-  for (let i22 = 0; i22 < event.tags.length; i22++) {
-    let tag = event.tags[i22];
-    if (!Array.isArray(tag))
-      return false;
-    for (let j = 0; j < tag.length; j++) {
-      if (typeof tag[j] !== "string")
-        return false;
-    }
-  }
-  return true;
-}
-var JS2 = class {
-  generateSecretKey() {
-    return schnorr.utils.randomSecretKey();
-  }
-  getPublicKey(secretKey) {
-    return bytesToHex(schnorr.getPublicKey(secretKey));
-  }
-  finalizeEvent(t, secretKey) {
-    const event = t;
-    event.pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
-    event.id = getEventHash2(event);
-    event.sig = bytesToHex(schnorr.sign(hexToBytes(getEventHash2(event)), secretKey));
-    event[verifiedSymbol2] = true;
-    return event;
-  }
-  verifyEvent(event) {
-    if (typeof event[verifiedSymbol2] === "boolean")
-      return event[verifiedSymbol2];
-    try {
-      const hash = getEventHash2(event);
-      if (hash !== event.id) {
-        event[verifiedSymbol2] = false;
-        return false;
-      }
-      const valid = schnorr.verify(hexToBytes(event.sig), hexToBytes(hash), hexToBytes(event.pubkey));
-      event[verifiedSymbol2] = valid;
-      return valid;
-    } catch (err) {
-      event[verifiedSymbol2] = false;
-      return false;
-    }
-  }
-};
-function serializeEvent2(evt) {
-  if (!validateEvent2(evt))
-    throw new Error("can't serialize event with wrong or missing properties");
-  return JSON.stringify([0, evt.pubkey, evt.created_at, evt.kind, evt.tags, evt.content]);
-}
-function getEventHash2(event) {
-  let eventHash = sha256(utf8Encoder3.encode(serializeEvent2(event)));
-  return bytesToHex(eventHash);
-}
-var i2 = new JS2();
-var generateSecretKey2 = i2.generateSecretKey;
-var getPublicKey2 = i2.getPublicKey;
-var finalizeEvent2 = i2.finalizeEvent;
-var verifyEvent2 = i2.verifyEvent;
-
-// src/security.ts
-var NSEC_PATTERN = /\bnsec1[023456789acdefghjklmnpqrstuvwxyz]{20,}\b/giu;
-var BUNKER_SECRET_PATTERN = /((?:bunker|nostrconnect):\/\/[^\s"']*?[?&]secret=)[^&\s"']+/giu;
-var BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/-]+=*/giu;
-var SERIALIZED_SENSITIVE_VALUE_PATTERN = /("(?:content|plaintext|ciphertext)"\s*:\s*)"(?:[^"\\]|\\.)*"/giu;
-var SENSITIVE_KEY_PATTERN = /^(?:nsec|private_?key|secret_?key|auth_?token|access_?token|plaintext|content)$/iu;
-var UnsafeSecretInputError = class extends Error {
-  constructor() {
-    super("Secret-key material is not accepted. Use a bunker: or nostrconnect: pairing flow.");
-    this.name = "UnsafeSecretInputError";
-  }
-};
-function containsNsecLike(value) {
-  if (typeof value === "string") {
-    NSEC_PATTERN.lastIndex = 0;
-    return NSEC_PATTERN.test(value);
-  }
-  if (Array.isArray(value)) return value.some(containsNsecLike);
-  if (value && typeof value === "object") {
-    return Object.entries(value).some(
-      ([key, child]) => /^(?:nsec|private_?key|secret_?key)$/iu.test(key) || containsNsecLike(child)
-    );
-  }
-  return false;
-}
-function assertNoNsec(value) {
-  if (containsNsecLike(value)) throw new UnsafeSecretInputError();
-}
-function redactString(value) {
-  NSEC_PATTERN.lastIndex = 0;
-  BUNKER_SECRET_PATTERN.lastIndex = 0;
-  BEARER_PATTERN.lastIndex = 0;
-  return value.replace(NSEC_PATTERN, "[REDACTED_NSEC]").replace(BUNKER_SECRET_PATTERN, "$1[REDACTED]").replace(BEARER_PATTERN, "Bearer [REDACTED]").replace(SERIALIZED_SENSITIVE_VALUE_PATTERN, '$1"[REDACTED]"');
-}
-function redact(value, key = "") {
-  if (SENSITIVE_KEY_PATTERN.test(key)) return "[REDACTED]";
-  if (typeof value === "string") return redactString(value);
-  if (Array.isArray(value)) return value.map((entry) => redact(entry));
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([childKey, child]) => [childKey, redact(child, childKey)])
-    );
-  }
-  return value;
-}
-var SafeLogger = class {
-  constructor(sink = (line) => process.stderr.write(`${line}
-`)) {
-    this.sink = sink;
-  }
-  sink;
-  info(message, fields = {}) {
-    this.write("info", message, fields);
-  }
-  error(message, error2, fields = {}) {
-    const safeError = error2 instanceof Error ? { name: error2.name, message: redactString(error2.message) } : redact(error2);
-    this.write("error", message, { ...fields, error: safeError });
-  }
-  write(level, message, fields) {
-    const safeFields = redact(fields);
-    const line = JSON.stringify({
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      level,
-      message: redactString(message),
-      ...safeFields
-    });
-    this.sink(line);
-  }
-};
-function publicError(error2) {
-  if (error2 instanceof UnsafeSecretInputError) return error2;
-  const message = error2 instanceof Error ? redactString(error2.message) : "Unexpected error";
-  return new Error(message);
-}
-
-// src/events.ts
-var HEX_32 = /^[0-9a-f]{64}$/u;
-var HEX_64 = /^[0-9a-f]{128}$/u;
-var MAX_CONTENT_BYTES = 65536;
-var MAX_TAGS = 128;
-var MAX_TAG_PARTS = 16;
-var MAX_TAG_PART_BYTES = 4096;
-function exactKeys(value, allowed) {
-  const keys = Object.keys(value).sort();
-  const expected = [...allowed].sort();
-  return keys.length === expected.length && keys.every((key, index) => key === expected[index]);
-}
-function assertHexPubkey(pubkey) {
-  if (!HEX_32.test(pubkey)) throw new Error("Expected a lowercase 64-character hex public key.");
-}
-function assertEventTemplate(value, nowSeconds = Math.floor(Date.now() / 1e3)) {
-  assertNoNsec(value);
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Event must be an object.");
-  if (!exactKeys(value, ["content", "created_at", "kind", "tags"]))
-    throw new Error("Unsigned event has unexpected or missing fields.");
-  const event = value;
-  if (!Number.isSafeInteger(event.kind) || event.kind < 0 || event.kind > 65535) {
-    throw new Error("Event kind must be an integer from 0 through 65535.");
-  }
-  if (!Number.isSafeInteger(event.created_at))
-    throw new Error("Event created_at must be an integer Unix timestamp.");
-  const age = nowSeconds - event.created_at;
-  if (age > 300 || age < -60) throw new Error("Event timestamp is stale or too far in the future.");
-  if (typeof event.content !== "string" || Buffer.byteLength(event.content, "utf8") > MAX_CONTENT_BYTES) {
-    throw new Error("Event content must be a string no larger than 65536 UTF-8 bytes.");
-  }
-  if (!Array.isArray(event.tags) || event.tags.length > MAX_TAGS)
-    throw new Error("Event tags are invalid or exceed the limit.");
-  for (const tag of event.tags) {
-    if (!Array.isArray(tag) || tag.length === 0 || tag.length > MAX_TAG_PARTS)
-      throw new Error("Each event tag must be a non-empty string array.");
-    for (const part of tag) {
-      if (typeof part !== "string" || Buffer.byteLength(part, "utf8") > MAX_TAG_PART_BYTES) {
-        throw new Error("Event tag values must be bounded strings.");
-      }
-    }
-  }
-}
-function assertSignedEvent(value) {
-  assertNoNsec(value);
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Signed event must be an object.");
-  if (!exactKeys(value, ["content", "created_at", "id", "kind", "pubkey", "sig", "tags"])) {
-    throw new Error("Signed event has unexpected or missing fields.");
-  }
-  const event = value;
-  if (!HEX_32.test(event.id) || !HEX_32.test(event.pubkey) || !HEX_64.test(event.sig))
-    throw new Error("Signed event has malformed identifiers.");
-  if (!validateEvent2(event) || !verifyEvent2(event))
-    throw new Error("Signed event failed Nostr hash/signature verification.");
-}
-function bindSignedEvent(template, signed, expectedPubkey) {
-  assertEventTemplate(template, template.created_at);
-  assertSignedEvent(signed);
-  if (signed.pubkey !== expectedPubkey)
-    throw new Error("Signer returned an event for a different public key.");
-  const returnedTemplate = {
-    kind: signed.kind,
-    created_at: signed.created_at,
-    tags: signed.tags,
-    content: signed.content
-  };
-  if (canonicalEventTemplate(returnedTemplate) !== canonicalEventTemplate(template)) {
-    throw new Error("Signer returned an event that does not match the approved request.");
-  }
-}
-function canonicalEventTemplate(event) {
-  return JSON.stringify([event.kind, event.created_at, event.tags, event.content]);
-}
-function eventFingerprint(event) {
-  return createHash("sha256").update(canonicalEventTemplate(event)).digest("hex");
-}
-function createKindOneNote(content, nowSeconds = Math.floor(Date.now() / 1e3)) {
-  const event = { kind: 1, created_at: nowSeconds, tags: [], content };
-  assertEventTemplate(event, nowSeconds);
-  return event;
-}
 
 // src/relays.ts
 function normalizeRelayUrls(values) {
@@ -10885,18 +11002,21 @@ var NostrRelayGateway = class {
 
 // src/service.ts
 var NostrSignerService = class {
-  constructor(session, signers, relays, defaultRelays, now = () => Date.now()) {
+  constructor(session, signers, nip07, relays, defaultRelays, now = () => Date.now()) {
     this.session = session;
     this.signers = signers;
+    this.nip07 = nip07;
     this.relays = relays;
     this.defaultRelays = defaultRelays;
     this.now = now;
   }
   session;
   signers;
+  nip07;
   relays;
   defaultRelays;
   now;
+  setupUrl;
   status() {
     return this.session.status();
   }
@@ -10905,6 +11025,24 @@ var NostrSignerService = class {
     const signer = await this.signers.connectBunker(uri);
     await this.session.attach(signer);
     return this.status();
+  }
+  async connectBrowserExtension(pubkey) {
+    const signer = this.nip07.register(pubkey);
+    await this.session.attach(signer);
+    return this.status();
+  }
+  nextBrowserExtensionRequest() {
+    return this.nip07.next();
+  }
+  respondToBrowserExtension(requestId, value, rejected) {
+    this.nip07.respond(requestId, value, rejected);
+  }
+  setSetupUrl(url) {
+    this.setupUrl = url;
+  }
+  getSetupUrl() {
+    if (!this.setupUrl) throw new Error("The local signer setup page is not ready.");
+    return this.setupUrl;
   }
   beginNostrConnect(relays) {
     const selected = this.selectedRelays(relays);
@@ -10959,11 +11097,13 @@ var NostrSignerService = class {
     if (input.since !== void 0) filter.since = input.since;
     return this.relays.query(this.selectedRelays(input.relays), filter);
   }
-  disconnect() {
-    return this.session.disconnect();
+  async disconnect() {
+    await this.session.disconnect();
+    this.nip07.close();
   }
   close() {
     this.relays.close();
+    this.nip07.close();
     void this.session.disconnect();
   }
   selectedRelays(relays) {
@@ -10975,7 +11115,7 @@ var NostrSignerService = class {
 };
 
 // src/session.ts
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 var SignerSession = class {
   constructor(logger2, now = () => Date.now(), sessionTtlMs = 18e5, intentTtlMs = 12e4) {
     this.logger = logger2;
@@ -10990,6 +11130,7 @@ var SignerSession = class {
   state = "disconnected";
   signer;
   pubkey;
+  signerType;
   expiresAtMs;
   detail;
   generation = 0;
@@ -11011,6 +11152,7 @@ var SignerSession = class {
     const previous = this.signer;
     this.signer = signer;
     this.pubkey = pubkey;
+    this.signerType = signer.kind;
     this.expiresAtMs = this.now() + this.sessionTtlMs;
     this.state = "connected";
     this.detail = void 0;
@@ -11024,6 +11166,7 @@ var SignerSession = class {
     this.signer = void 0;
     this.state = "pairing";
     this.pubkey = void 0;
+    this.signerType = void 0;
     this.expiresAtMs = this.now() + 3e5;
     this.detail = "Waiting for approval in the remote signer.";
     this.intents.clear();
@@ -11037,6 +11180,7 @@ var SignerSession = class {
       assertHexPubkey(pubkey);
       this.signer = signer;
       this.pubkey = pubkey;
+      this.signerType = signer.kind;
       this.expiresAtMs = this.now() + this.sessionTtlMs;
       this.state = "connected";
       this.detail = void 0;
@@ -11053,6 +11197,7 @@ var SignerSession = class {
     return {
       state: this.state,
       ...this.pubkey ? { pubkey: this.pubkey } : {},
+      ...this.signerType ? { signerType: this.signerType } : {},
       ...this.expiresAtMs ? { expiresAt: new Date(this.expiresAtMs).toISOString() } : {},
       ...this.detail ? { detail: this.detail } : {}
     };
@@ -11065,7 +11210,7 @@ var SignerSession = class {
     this.requireConnected();
     assertEventTemplate(event, Math.floor(this.now() / 1e3));
     const record2 = {
-      intentId: randomUUID(),
+      intentId: randomUUID2(),
       state: "prepared",
       event: structuredClone(event),
       fingerprint: eventFingerprint(event),
@@ -11126,13 +11271,16 @@ var SignerSession = class {
   }
   async decrypt(pubkey, ciphertext, confirmed) {
     if (!confirmed) throw new Error("Explicit decryption confirmation is required.");
-    return this.requireConnected().nip44Decrypt(pubkey, ciphertext);
+    const plaintext = await this.requireConnected().nip44Decrypt(pubkey, ciphertext);
+    assertNoNsec(plaintext);
+    return plaintext;
   }
   async disconnect() {
     ++this.generation;
     const signer = this.signer;
     this.signer = void 0;
     this.pubkey = void 0;
+    this.signerType = void 0;
     this.expiresAtMs = void 0;
     this.state = "disconnected";
     this.detail = void 0;
@@ -11150,6 +11298,7 @@ var SignerSession = class {
       const signer = this.signer;
       this.signer = void 0;
       this.pubkey = void 0;
+      this.signerType = void 0;
       ++this.generation;
       this.state = "expired";
       this.detail = "The in-memory signer session expired. Pair again.";
@@ -12144,7 +12293,7 @@ var base64 = hasBase64Builtin ? {
 
 // node_modules/nostr-tools/lib/esm/nip46.js
 var utf8Decoder3 = new TextDecoder("utf-8");
-var utf8Encoder4 = new TextEncoder();
+var utf8Encoder3 = new TextEncoder();
 function normalizeURL2(url) {
   try {
     if (url.indexOf("://") === -1)
@@ -12244,7 +12393,7 @@ function serializeEvent3(evt) {
   return JSON.stringify([0, evt.pubkey, evt.created_at, evt.kind, evt.tags, evt.content]);
 }
 function getEventHash3(event) {
-  let eventHash = sha256(utf8Encoder4.encode(serializeEvent3(event)));
+  let eventHash = sha256(utf8Encoder3.encode(serializeEvent3(event)));
   return bytesToHex(eventHash);
 }
 var i3 = new JS3();
@@ -12257,7 +12406,7 @@ var maxPlaintextSize = 4294967295;
 var extendedPrefixThreshold = 65536;
 function getConversationKey(privkeyA, pubkeyB) {
   const sharedX = secp256k1.getSharedSecret(privkeyA, hexToBytes("02" + pubkeyB)).subarray(1, 33);
-  return extract(sha256, sharedX, utf8Encoder4.encode("nip44-v2"));
+  return extract(sha256, sharedX, utf8Encoder3.encode("nip44-v2"));
 }
 function getMessageKeys(conversationKey, nonce) {
   const keys = expand(sha256, conversationKey, nonce, 76);
@@ -12291,7 +12440,7 @@ function writeU32BE(num2) {
   return arr;
 }
 function pad(plaintext) {
-  const unpadded = utf8Encoder4.encode(plaintext);
+  const unpadded = utf8Encoder3.encode(plaintext);
   const unpaddedLen = unpadded.length;
   if (unpaddedLen < minPlaintextSize || unpaddedLen > maxPlaintextSize)
     throw new Error("invalid plaintext size: must be between 1 and 4294967295 bytes");
@@ -12979,7 +13128,7 @@ var Subscription2 = class {
 };
 var M2 = 256;
 var HLL_HEX_LENGTH2 = M2 * 2;
-var utf8Encoder22 = new TextEncoder();
+var utf8Encoder23 = new TextEncoder();
 function getCountManyFilter2(target, directive) {
   switch (directive) {
     case "reactions":
@@ -13673,6 +13822,7 @@ var NostrToolsRemoteSigner = class {
   }
   signer;
   timeoutMs;
+  kind = "nip46";
   async getPublicKey() {
     try {
       return await withTimeout(this.signer.getPublicKey(), this.timeoutMs, "get_public_key");
@@ -13733,7 +13883,7 @@ var Nip46SignerFactory = class {
     const pointer = await parseBunkerInput(connectionUri);
     if (!pointer) throw new Error("The bunker connection URI is invalid.");
     pointer.relays = normalizeRelayUrls(pointer.relays);
-    const signer = BunkerSigner.fromBunker(generateSecretKey2(), pointer, {
+    const signer = BunkerSigner.fromBunker(generateSecretKey(), pointer, {
       skipSwitchRelays: true,
       onauth: () => this.logger.info("Remote signer requested out-of-band authorization.")
     });
@@ -13752,10 +13902,10 @@ var Nip46SignerFactory = class {
   }
   beginNostrConnect(relays, waitMs = 3e5) {
     const normalized = normalizeRelayUrls(relays);
-    const clientSecretKey = generateSecretKey2();
+    const clientSecretKey = generateSecretKey();
     const secret = randomBytes3(24).toString("hex");
     const uri = createNostrConnectURI({
-      clientPubkey: getPublicKey2(clientSecretKey),
+      clientPubkey: getPublicKey(clientSecretKey),
       relays: normalized,
       secret,
       perms: ["get_public_key", "sign_event", "nip44_encrypt", "nip44_decrypt"],
@@ -13783,8 +13933,15 @@ function createRuntime() {
   const sessionTtlMs = Number(process.env.NOSTR_SESSION_TTL_MS ?? 18e5);
   const session = new SignerSession(logger2, () => Date.now(), sessionTtlMs);
   const signers = new Nip46SignerFactory(logger2, requestTimeoutMs);
+  const nip07 = new Nip07Bridge(requestTimeoutMs);
   const relays = new NostrRelayGateway(void 0, Math.min(requestTimeoutMs, 15e3));
-  const service2 = new NostrSignerService(session, signers, relays, relayUrlsFromEnvironment());
+  const service2 = new NostrSignerService(
+    session,
+    signers,
+    nip07,
+    relays,
+    relayUrlsFromEnvironment()
+  );
   return { service: service2, logger: logger2 };
 }
 
@@ -28037,16 +28194,35 @@ function failure(error2, logger2) {
 }
 function createMcpServer(service2, logger2) {
   const server = new McpServer(
-    { name: "nostr-signer-chatgpt", version: "0.1.0" },
+    { name: "nostr-signer-chatgpt", version: "0.2.0" },
     {
-      instructions: "Never ask for or accept an nsec/private key. Pair only with bunker:// or nostrconnect://. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the remote signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned."
+      instructions: "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned."
+    }
+  );
+  server.registerTool(
+    "get_setup_url",
+    {
+      title: "Get signer setup URL",
+      description: "Return the loopback-only page used to connect a NIP-07 browser extension or an advanced NIP-46 signer.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
+    },
+    async () => {
+      try {
+        return result({
+          url: service2.getSetupUrl(),
+          recommended: "Open this URL in the browser profile that has Alby or nos2x installed."
+        });
+      } catch (error2) {
+        return failure(error2, logger2);
+      }
     }
   );
   server.registerTool(
     "get_signer_status",
     {
       title: "Get signer status",
-      description: "Check whether a user-controlled NIP-46 signer is paired.",
+      description: "Check whether a user-controlled NIP-07 or NIP-46 signer is connected.",
       inputSchema: {}
     },
     async () => result(service2.status())
@@ -28055,7 +28231,7 @@ function createMcpServer(service2, logger2) {
     "begin_nostrconnect_pairing",
     {
       title: "Begin signer pairing",
-      description: "Create a nostrconnect:// URI for the user to scan or open in their signer. Never accepts an nsec.",
+      description: "Advanced fallback: create a nostrconnect:// URI for the user to scan or open in a remote signer. Never accepts an nsec.",
       inputSchema: { relays: relayList },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true }
     },
@@ -28268,21 +28444,31 @@ async function serveMcp(service2, logger2) {
 // src/ui.ts
 import { createServer } from "node:http";
 import { randomBytes as randomBytes4 } from "node:crypto";
-var MAX_BODY_BYTES = 32768;
+var MAX_BODY_BYTES = 16e4;
 function html(token) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-local'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-local' chrome-extension: moz-extension:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'">
 <title>Nostr Signer for ChatGPT</title><style>
-:root{color-scheme:light dark;font:16px system-ui,sans-serif}body{max-width:760px;margin:40px auto;padding:0 20px;background:#101417;color:#f4f7f5}main{background:#182026;border:1px solid #334149;border-radius:18px;padding:28px}h1{margin-top:0}.safe{color:#7ee2ad;font-weight:700}.warn{color:#ffd479}label{display:block;margin:18px 0 7px}input,textarea,button{font:inherit;border-radius:9px;border:1px solid #52636d;padding:11px;background:#0f1519;color:#fff}input,textarea{box-sizing:border-box;width:100%}button{cursor:pointer;background:#6d46ff;border-color:#8e73ff;font-weight:700}button.secondary{background:#29343b}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1215;padding:14px;border-radius:9px;min-height:44px}.row{display:flex;gap:10px;flex-wrap:wrap}.row button{flex:1}.muted{color:#aab7bd;font-size:.92rem}</style></head>
-<body><main><h1>Nostr Signer for ChatGPT</h1><p class="safe">Your nsec never belongs here.</p>
-<p>Connect a signer you control. Approval and signing stay in Amber, nsec.app, Clave, or another NIP-46 signer.</p>
-<h2>Option A: scan a nostrconnect URI</h2><label for="relays">Pairing relays (comma-separated wss:// URLs)</label><input id="relays" placeholder="wss://relay.nsec.app,wss://relay.damus.io"><div class="row"><button id="pair">Create pairing URI</button><button class="secondary" id="status">Refresh status</button></div><label>Pairing URI</label><pre id="pairing">Not created.</pre>
-<h2>Option B: paste a bunker URI</h2><p class="muted">This page is served only on 127.0.0.1. The URI is held in memory and never logged.</p><label for="bunker">bunker:// URI</label><textarea id="bunker" rows="3" autocomplete="off" spellcheck="false"></textarea><button id="connect">Connect and wait for signer approval</button>
-<h2>Status</h2><pre id="output">Disconnected.</pre><p class="warn">Never paste an nsec or raw private key. The server rejects nsec-like input.</p>
+:root{color-scheme:light dark;font:16px system-ui,sans-serif}body{max-width:800px;margin:40px auto;padding:0 20px;background:#101417;color:#f4f7f5}main{background:#182026;border:1px solid #334149;border-radius:18px;padding:28px}h1{margin-top:0}.safe{color:#7ee2ad;font-weight:700}.warn{color:#ffd479}.card{padding:20px;border:1px solid #42535d;border-radius:14px;background:#12191d;margin:20px 0}.recommended{border-color:#7a63ff;box-shadow:0 0 0 1px #7a63ff}.badge{display:inline-block;background:#6d46ff;border-radius:999px;padding:4px 9px;font-size:.78rem;font-weight:800}label{display:block;margin:18px 0 7px}input,textarea,button{font:inherit;border-radius:9px;border:1px solid #52636d;padding:11px;background:#0f1519;color:#fff}input,textarea{box-sizing:border-box;width:100%}button{cursor:pointer;background:#6d46ff;border-color:#8e73ff;font-weight:700}button.secondary{background:#29343b}button.reject{background:#512b33;border-color:#8c4c59}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1215;padding:14px;border-radius:9px;min-height:44px}.row{display:flex;gap:10px;flex-wrap:wrap}.row button{flex:1}.muted{color:#aab7bd;font-size:.92rem}details{margin-top:24px}summary{cursor:pointer;font-weight:700}#approval[hidden]{display:none}</style></head>
+<body><main><h1>Nostr Signer for ChatGPT</h1><p class="safe">Your private key stays in your signer.</p>
+<section class="card recommended"><span class="badge">Recommended</span><h2>Use Alby, nos2x, or another NIP-07 extension</h2><p>Open this local page in the Chrome or Firefox profile where your signer extension is installed. Connect once, keep this tab open, and approve each request here and in your extension.</p><div class="row"><button id="extension">Connect browser extension</button><button class="secondary" id="copyUrl">Copy setup URL</button></div><pre id="extensionStatus">Extension not connected.</pre>
+<div id="approval" hidden><h3>Approval waiting</h3><p class="warn">Review the exact request below. Continue only if it matches what you asked to do; your extension's own approval policy is the final protection.</p><pre id="request"></pre><div class="row"><button id="approve">Continue in extension</button><button class="reject" id="reject">Reject request</button></div></div></section>
+<div class="row"><button class="secondary" id="status">Refresh signer status</button></div><h2>Signer status</h2><pre id="output">Disconnected.</pre>
+<details><summary>Advanced: remote NIP-46 signer</summary><section class="card"><h3>Scan a nostrconnect URI</h3><label for="relays">Pairing relays (comma-separated wss:// URLs)</label><input id="relays" placeholder="wss://relay.nsec.app,wss://relay.damus.io"><button id="pair">Create pairing URI</button><label>Pairing URI</label><pre id="pairing">Not created.</pre>
+<h3>Or paste a bunker URI</h3><p class="muted">The URI is held only in process memory and is never logged.</p><label for="bunker">bunker:// URI</label><textarea id="bunker" rows="3" autocomplete="off" spellcheck="false"></textarea><button id="connect">Connect remote signer</button></section></details>
+<p class="warn">Never paste an nsec, seed phrase, or raw private key. This project intentionally rejects them.</p>
 </main><script nonce="local">
-const token=${JSON.stringify(token)}; const output=document.querySelector('#output');
+const token=${JSON.stringify(token)}; const output=document.querySelector('#output'); let pending=null; let polling=false;
 async function call(path,body){const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json','x-nostr-ui-token':token},body:JSON.stringify(body)});const x=await r.json();if(!r.ok)throw new Error(x.error||'Request failed');return x}
+function extensionApi(){if(!window.nostr)throw new Error('No NIP-07 extension detected. Open this URL in the browser profile where Alby or nos2x is installed.');return window.nostr}
+function showPending(operation){pending=operation;document.querySelector('#approval').hidden=!operation;document.querySelector('#request').textContent=operation?JSON.stringify(operation,null,2):''}
+async function poll(){if(polling)return;polling=true;try{const x=await call('/api/nip07/next',{});showPending(x.operation)}catch(e){document.querySelector('#extensionStatus').textContent=e.message}finally{polling=false}}
+setInterval(poll,750);
+document.querySelector('#extension').onclick=async()=>{try{const pubkey=await extensionApi().getPublicKey();const x=await call('/api/nip07/connect',{pubkey});document.querySelector('#extensionStatus').textContent='Connected: '+pubkey;output.textContent=JSON.stringify(x,null,2);await poll()}catch(e){document.querySelector('#extensionStatus').textContent=e.message}};
+document.querySelector('#copyUrl').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);document.querySelector('#extensionStatus').textContent='Setup URL copied. Paste it into the browser profile containing your signer extension.'}catch(e){document.querySelector('#extensionStatus').textContent='Copy the URL from the address bar and open it in your extension-enabled browser.'}};
+document.querySelector('#approve').onclick=async()=>{if(!pending)return;const current=pending;try{const api=extensionApi();let result;if(current.method==='sign_event')result=await api.signEvent(current.event);else if(current.method==='nip44_encrypt'){if(!api.nip44?.encrypt)throw new Error('This extension does not provide NIP-44 encryption.');result=await api.nip44.encrypt(current.pubkey,current.plaintext)}else{if(!api.nip44?.decrypt)throw new Error('This extension does not provide NIP-44 decryption.');result=await api.nip44.decrypt(current.pubkey,current.ciphertext)}await call('/api/nip07/respond',{requestId:current.requestId,result});showPending(null);document.querySelector('#extensionStatus').textContent='Request completed by extension.'}catch(e){document.querySelector('#extensionStatus').textContent=e.message}};
+document.querySelector('#reject').onclick=async()=>{if(!pending)return;try{await call('/api/nip07/respond',{requestId:pending.requestId,rejected:true});showPending(null);document.querySelector('#extensionStatus').textContent='Request rejected.'}catch(e){document.querySelector('#extensionStatus').textContent=e.message}};
 document.querySelector('#pair').onclick=async()=>{try{const relays=document.querySelector('#relays').value.split(',').map(x=>x.trim()).filter(Boolean);const x=await call('/api/pair',{relays});document.querySelector('#pairing').textContent=x.uri;output.textContent=JSON.stringify(x.status,null,2)}catch(e){output.textContent=e.message}};
 document.querySelector('#connect').onclick=async()=>{try{output.textContent='Waiting for approval in your signer\u2026';const x=await call('/api/connect',{uri:document.querySelector('#bunker').value});document.querySelector('#bunker').value='';output.textContent=JSON.stringify(x,null,2)}catch(e){document.querySelector('#bunker').value='';output.textContent=e.message}};
 document.querySelector('#status').onclick=async()=>{try{const x=await call('/api/status',{});output.textContent=JSON.stringify(x,null,2)}catch(e){output.textContent=e.message}};
@@ -28312,6 +28498,10 @@ async function startLocalSetupUi(service2, logger2, port = Number(process.env.NO
   const token = randomBytes4(32).toString("base64url");
   const server = createServer(async (request, response) => {
     try {
+      if (!/^127\.0\.0\.1(?::\d+)?$/u.test(request.headers.host ?? "")) {
+        json(response, 421, { error: "Loopback host required." });
+        return;
+      }
       if (request.method === "GET" && request.url === "/") {
         response.writeHead(200, {
           "content-type": "text/html; charset=utf-8",
@@ -28329,6 +28519,19 @@ async function startLocalSetupUi(service2, logger2, port = Number(process.env.NO
       const body = await readJson(request);
       if (request.url === "/api/status") {
         json(response, 200, service2.status());
+        return;
+      }
+      if (request.url === "/api/nip07/connect" && typeof body.pubkey === "string") {
+        json(response, 200, await service2.connectBrowserExtension(body.pubkey));
+        return;
+      }
+      if (request.url === "/api/nip07/next") {
+        json(response, 200, { operation: service2.nextBrowserExtensionRequest() });
+        return;
+      }
+      if (request.url === "/api/nip07/respond" && typeof body.requestId === "string") {
+        service2.respondToBrowserExtension(body.requestId, body.result, body.rejected === true);
+        json(response, 200, { accepted: true });
         return;
       }
       if (request.url === "/api/pair") {
@@ -28365,6 +28568,7 @@ async function startLocalSetupUi(service2, logger2, port = Number(process.env.NO
 // src/index.ts
 var { service, logger } = createRuntime();
 var setupUi = await startLocalSetupUi(service, logger);
+service.setSetupUrl(setupUi.url);
 var mcp = await serveMcp(service, logger);
 async function shutdown() {
   service.close();

@@ -5,7 +5,7 @@ import {
   bindSignedEvent,
   eventFingerprint,
 } from "./events.js";
-import { publicError, type SafeLogger } from "./security.js";
+import { assertNoNsec, publicError, type SafeLogger } from "./security.js";
 import type {
   EventTemplate,
   RemoteSigner,
@@ -28,6 +28,7 @@ export class SignerSession {
   private state: SessionState = "disconnected";
   private signer: RemoteSigner | undefined;
   private pubkey: string | undefined;
+  private signerType: RemoteSigner["kind"] | undefined;
   private expiresAtMs: number | undefined;
   private detail: string | undefined;
   private generation = 0;
@@ -57,6 +58,7 @@ export class SignerSession {
     const previous = this.signer;
     this.signer = signer;
     this.pubkey = pubkey;
+    this.signerType = signer.kind;
     this.expiresAtMs = this.now() + this.sessionTtlMs;
     this.state = "connected";
     this.detail = undefined;
@@ -71,6 +73,7 @@ export class SignerSession {
     this.signer = undefined;
     this.state = "pairing";
     this.pubkey = undefined;
+    this.signerType = undefined;
     this.expiresAtMs = this.now() + 300_000;
     this.detail = "Waiting for approval in the remote signer.";
     this.intents.clear();
@@ -85,6 +88,7 @@ export class SignerSession {
         assertHexPubkey(pubkey);
         this.signer = signer;
         this.pubkey = pubkey;
+        this.signerType = signer.kind;
         this.expiresAtMs = this.now() + this.sessionTtlMs;
         this.state = "connected";
         this.detail = undefined;
@@ -103,6 +107,7 @@ export class SignerSession {
     return {
       state: this.state,
       ...(this.pubkey ? { pubkey: this.pubkey } : {}),
+      ...(this.signerType ? { signerType: this.signerType } : {}),
       ...(this.expiresAtMs ? { expiresAt: new Date(this.expiresAtMs).toISOString() } : {}),
       ...(this.detail ? { detail: this.detail } : {}),
     };
@@ -184,7 +189,9 @@ export class SignerSession {
 
   async decrypt(pubkey: string, ciphertext: string, confirmed: boolean): Promise<string> {
     if (!confirmed) throw new Error("Explicit decryption confirmation is required.");
-    return this.requireConnected().nip44Decrypt(pubkey, ciphertext);
+    const plaintext = await this.requireConnected().nip44Decrypt(pubkey, ciphertext);
+    assertNoNsec(plaintext);
+    return plaintext;
   }
 
   async disconnect(): Promise<void> {
@@ -192,6 +199,7 @@ export class SignerSession {
     const signer = this.signer;
     this.signer = undefined;
     this.pubkey = undefined;
+    this.signerType = undefined;
     this.expiresAtMs = undefined;
     this.state = "disconnected";
     this.detail = undefined;
@@ -215,6 +223,7 @@ export class SignerSession {
       const signer = this.signer;
       this.signer = undefined;
       this.pubkey = undefined;
+      this.signerType = undefined;
       ++this.generation;
       this.state = "expired";
       this.detail = "The in-memory signer session expired. Pair again.";

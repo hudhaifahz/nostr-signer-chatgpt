@@ -1,13 +1,15 @@
 ---
 name: nostr-signer
-description: Connect a user-controlled NIP-46 signer and safely prepare, approve, sign, publish, encrypt, decrypt, or read Nostr events without accepting an nsec. Use for Nostr signing and posting requests; do not use as a NIP-07 browser extension.
+description: Connect Alby, nos2x, another NIP-07 browser extension, or an advanced NIP-46 remote signer and safely prepare, approve, sign, publish, encrypt, decrypt, or read Nostr events without accepting an nsec. Use for Nostr signing and posting requests.
 ---
 
 # Nostr Signer
 
 Never request, accept, repeat, or store an nsec or raw private key. If one appears, stop and tell the user to rotate it outside ChatGPT; do not call a tool with it.
 
-For a new signer session, prefer `begin_nostrconnect_pairing` so the user can approve in their own signer. If the user already has a `bunker://` URI, direct them to the local setup page; call `connect_bunker` only when they knowingly supplied the URI in chat. Treat bunker and pairing secrets as sensitive even though they are not an nsec.
+For a new signer session, call `get_setup_url` and ask the user to open that loopback URL in the browser profile where Alby, nos2x, or another NIP-07 extension is installed. They click **Connect browser extension** once and keep the page open. Do not claim the extension is connected until `get_signer_status` reports `connected` with `signerType: nip07`.
+
+NIP-46 is an advanced fallback. If the user chooses it, use `begin_nostrconnect_pairing`, or direct an existing `bunker://` URI to the local setup page. Call `connect_bunker` only when the user knowingly supplied the URI in chat. Treat bunker and pairing secrets as sensitive even though they are not an nsec.
 
 For posting:
 
@@ -22,4 +24,4 @@ Do not silently retry a signing request. An expired, failed, or consumed signing
 
 Treat NIP-44 plaintext and decrypted output as sensitive. Use the encryption or decryption tools only for the user's explicit request and avoid repeating plaintext unnecessarily.
 
-NIP-07 is a separate browser-extension interface. This plugin does not inject `window.nostr`, impersonate an extension, or grant arbitrary third-party pages access to the signer.
+The loopback bridge requests `window.nostr` operations only from its local page. The user must review and continue each request there; the installed extension may require another approval. Never imply that ChatGPT can click either approval or access the extension's private key.

@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import { createMcpServer } from "../src/mcp.js";
+import { Nip07Bridge } from "../src/nip07.js";
 import { SimulatedRelayGateway } from "../src/relays.js";
 import { SafeLogger } from "../src/security.js";
 import { NostrSignerService } from "../src/service.js";
@@ -12,9 +13,13 @@ function harness() {
   const logger = new SafeLogger(() => {});
   const relay = new SimulatedRelayGateway();
   const session = new SignerSession(logger);
-  const service = new NostrSignerService(session, {} as Nip46SignerFactory, relay, [
-    "ws://127.0.0.1:7777",
-  ]);
+  const service = new NostrSignerService(
+    session,
+    {} as Nip46SignerFactory,
+    new Nip07Bridge(),
+    relay,
+    ["ws://127.0.0.1:7777"],
+  );
   return { logger, relay, session, service };
 }
 
@@ -49,6 +54,7 @@ describe("simulated end-to-end integration", () => {
         "connect_bunker",
         "disconnect_signer",
         "get_public_key",
+        "get_setup_url",
         "get_signer_status",
         "nip44_decrypt",
         "nip44_encrypt",

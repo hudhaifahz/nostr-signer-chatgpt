@@ -1,10 +1,12 @@
 # Marketplace and publication checklist
 
-This checklist is deliberately not complete in v0.1.0. Public submission requires a separate human approval.
+This checklist is deliberately not complete in v0.2.0. Public submission requires a separate human approval.
 
 ## Security and privacy
 
 - [ ] Independent review of NIP-46 request/response binding, signer pubkey binding, replay handling, timeouts, and relay behavior.
+- [ ] Independent review of the loopback NIP-07 request queue, anti-CSRF boundary, user-gesture approval, stale responses, and extension-origin assumptions.
+- [ ] Live NIP-07 matrix recorded for current Alby and nos2x releases in supported browser profiles.
 - [ ] Dependency, lockfile, license, static-analysis, secret-scan, and production build review.
 - [ ] Live test that an `nsec` is never requested or accepted, and red-team encoded/private-key variants.
 - [ ] Publish and verify a private security-reporting contact with response targets.

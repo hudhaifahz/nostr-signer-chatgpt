@@ -1,11 +1,11 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "nostr-signer-chatgpt",
-  "version": "0.1.0",
-  "description": "Connect a user-controlled NIP-46 signer without exposing an nsec.",
+  "version": "0.2.0",
+  "description": "Sign with Alby, nos2x, or a remote signer without exposing an nsec.",
   "author": {
     "name": "Nostr Signer contributors"
   },
   "license": "Apache-2.0",
-  "keywords": ["nostr", "nip-46", "signer", "mcp", "chatgpt", "codex"]
+  "keywords": ["nostr", "nip-07", "nip-46", "alby", "nos2x", "signer", "mcp", "chatgpt", "codex"]
 }

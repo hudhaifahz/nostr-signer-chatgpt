@@ -1,5 +1,6 @@
 import type { Filter } from "nostr-tools/filter";
 import { createKindOneNote } from "./events.js";
+import type { Nip07Bridge, Nip07Operation } from "./nip07.js";
 import { normalizeRelayUrls } from "./relays.js";
 import { assertNoNsec } from "./security.js";
 import type { SignerSession } from "./session.js";
@@ -17,10 +18,13 @@ export class NostrSignerService {
   constructor(
     readonly session: SignerSession,
     private readonly signers: Nip46SignerFactory,
+    private readonly nip07: Nip07Bridge,
     private readonly relays: RelayGateway,
     private readonly defaultRelays: string[],
     private readonly now: () => number = () => Date.now(),
   ) {}
+
+  private setupUrl: string | undefined;
 
   status(): SessionView {
     return this.session.status();
@@ -31,6 +35,29 @@ export class NostrSignerService {
     const signer = await this.signers.connectBunker(uri);
     await this.session.attach(signer);
     return this.status();
+  }
+
+  async connectBrowserExtension(pubkey: string): Promise<SessionView> {
+    const signer = this.nip07.register(pubkey);
+    await this.session.attach(signer);
+    return this.status();
+  }
+
+  nextBrowserExtensionRequest(): Nip07Operation | null {
+    return this.nip07.next();
+  }
+
+  respondToBrowserExtension(requestId: string, value: unknown, rejected: boolean): void {
+    this.nip07.respond(requestId, value, rejected);
+  }
+
+  setSetupUrl(url: string): void {
+    this.setupUrl = url;
+  }
+
+  getSetupUrl(): string {
+    if (!this.setupUrl) throw new Error("The local signer setup page is not ready.");
+    return this.setupUrl;
   }
 
   beginNostrConnect(relays?: string[]): { uri: string; status: SessionView } {
@@ -105,12 +132,14 @@ export class NostrSignerService {
     return this.relays.query(this.selectedRelays(input.relays), filter);
   }
 
-  disconnect(): Promise<void> {
-    return this.session.disconnect();
+  async disconnect(): Promise<void> {
+    await this.session.disconnect();
+    this.nip07.close();
   }
 
   close(): void {
     this.relays.close();
+    this.nip07.close();
     void this.session.disconnect();
   }
 

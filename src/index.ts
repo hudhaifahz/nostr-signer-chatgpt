@@ -4,6 +4,7 @@ import { startLocalSetupUi } from "./ui.js";
 
 const { service, logger } = createRuntime();
 const setupUi = await startLocalSetupUi(service, logger);
+service.setSetupUrl(setupUi.url);
 const mcp = await serveMcp(service, logger);
 
 async function shutdown(): Promise<void> {
