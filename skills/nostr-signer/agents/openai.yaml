@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nostr Signer"
+  short_description: "Approve and publish Nostr events with your signer"
+  default_prompt: "Connect my Nostr signer and help me safely publish a note."

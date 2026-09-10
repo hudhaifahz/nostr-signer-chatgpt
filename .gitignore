@@ -1,0 +1,13 @@
+node_modules/
+work/
+dist/
+coverage/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+*.pem
+*.key
+*.secret
+.nostr-signer-session*

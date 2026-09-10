@@ -1,0 +1,24 @@
+{
+  "name": "nostr-signer-chatgpt",
+  "version": "0.1.0",
+  "description": "Connect a user-controlled NIP-46 signer without exposing an nsec.",
+  "author": {
+    "name": "Nostr Signer contributors"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Nostr Signer",
+    "shortDescription": "Approve Nostr signatures with your own signer.",
+    "longDescription": "Pair a bunker-compatible NIP-46 signer, review exact events, approve signatures in the signer, and publish only with separate confirmation. Private keys never enter the plugin.",
+    "developerName": "Nostr Signer contributors",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "Connect my Nostr signer safely.",
+      "Prepare a Nostr note for my review.",
+      "Show my signer status."
+    ]
+  },
+  "mcpServers": "./.mcp.json",
+  "apps": "./.app.json"
+}

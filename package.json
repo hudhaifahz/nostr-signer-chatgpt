@@ -1,0 +1,39 @@
+{
+  "name": "nostr-signer-chatgpt",
+  "version": "0.1.0",
+  "description": "Local-first NIP-46 signer bridge for ChatGPT Work and Codex",
+  "type": "module",
+  "private": true,
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=mcp/server.mjs",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build && npm run smoke:bundle && npm run validate:skill && npm run validate:plugin",
+    "demo": "tsx src/demo.ts",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "smoke:bundle": "tsx scripts/smoke-bundle.ts",
+    "start": "node --env-file-if-exists=.env mcp/server.mjs",
+    "test": "vitest run tests/*.test.ts",
+    "test:watch": "vitest tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "validate:plugin": "uv run --with pyyaml python /Users/kode/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py .",
+    "validate:skill": "uv run --with pyyaml python /Users/kode/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/nostr-signer"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "nostr-tools": "2.25.2",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.4",
+    "@types/node": "24.3.1",
+    "esbuild": "0.28.2",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2",
+    "vitest": "4.1.11"
+  }
+}
