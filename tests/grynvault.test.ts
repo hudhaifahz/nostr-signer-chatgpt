@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { verifyEvent } from "nostr-tools";
 import { describe, expect, it } from "vitest";
-import { GrynvaultApiClient, GrynvaultService } from "../src/grynvault.js";
+import { GRYNVAULT_API_BASE, GrynvaultApiClient, GrynvaultService } from "../src/grynvault.js";
 import { Nip07Bridge } from "../src/nip07.js";
 import { SimulatedRelayGateway } from "../src/relays.js";
 import { SafeLogger } from "../src/security.js";
@@ -48,6 +48,13 @@ function tag(event: SignedEvent, name: string) {
 }
 
 describe("Grynvault signed account and invoice operations", () => {
+  it("pins the verified production API origin", () => {
+    expect(GRYNVAULT_API_BASE).toBe("https://app.frontiercrown.com");
+    expect(new GrynvaultApiClient().endpoint("/api/supporter/account/challenge")).toBe(
+      "https://app.frontiercrown.com/api/supporter/account/challenge",
+    );
+  });
+
   it("retrieves a signed read-only dashboard without creating an invoice", async () => {
     const challenge = "a".repeat(64);
     const { grynvault, seen } = await harness([

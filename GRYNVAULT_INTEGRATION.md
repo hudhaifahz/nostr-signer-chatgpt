@@ -1,10 +1,9 @@
 # Grynvault integration contract
 
-Implemented against CrownFrontier v115 at `https://api.frontiercrown.com`. The production owner reports
-the API/dashboard live at exact commit `84e5b7cbe91bdbbdd0118228e3bd4156e8411b65`. Independent checks
-through both the system resolver and Cloudflare DNS-over-HTTPS returned NXDOMAIN on 2026-09-10. The
-contract passes against a mock server, but the Grynvault tools cannot work live until the exact
-hostname resolves and serves v115. Validation sends no signed POST and creates no invoice.
+Implemented against CrownFrontier v116 at `https://app.frontiercrown.com`. The API/dashboard health
+check and an ephemeral signed, read-only account canary passed at exact commit
+`ea6880a2d539ff4df3a5571b8108a954b4f22a6c` on 2026-09-10. The canary received the v116 account,
+Drive, and Arkade response fields; replaying its single-use challenge returned 401. It created no invoice.
 
 ## MCP tools
 
@@ -20,12 +19,14 @@ hostname resolves and serves v115. Validation sends no signed POST and creates n
 
 ### Read-only dashboard
 
-1. `GET /api/supporter/account/challenge` returns `{ "challenge": "<64 hex>", "authUrl": "https://api.frontiercrown.com/api/supporter/account" }`.
+1. `GET /api/supporter/account/challenge` returns `{ "challenge": "<64 hex>", "authUrl": "https://app.frontiercrown.com/api/supporter/account" }`.
 2. Sign the exact POST body `{ "challenge": "<same value>" }`.
 3. `POST <authUrl>` with that JSON body and the Nostr authorization.
 
-The response contains only the signing pubkey's membership, badges, totals, payment history, and NIP-05
-history. The plugin labels it `access: "read_only"`, `invoiceCreated: false`, and
+The response contains only the signing pubkey's membership, badges, totals, payment history, NIP-05
+history, bound Frontier Crown account summary, Drive entitlement, and Arkade eligibility. Drive file
+usage is decrypted only by the browser client, and Arkade wallet balances remain available only inside
+the wallet. The plugin labels the response `access: "read_only"`, `invoiceCreated: false`, and
 `settlementChanged: false`.
 
 ### Supporter donation or membership invoice

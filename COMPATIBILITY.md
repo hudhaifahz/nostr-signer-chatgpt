@@ -31,7 +31,7 @@ It is not yet a universal ChatGPT-web, mobile, hosted, or unattended-agent signe
 | Windows / Linux | Node 22+ | Not run on clean machines | Unverified | Community testers wanted |
 | Mobile | Mobile browser/AI host | Not implemented or tested | Not supported | Do not advertise |
 | OpenClaw bundle | Agent Plugins/Codex bundle mapping | Current documentation review only | Unverified | Package format is intended to load; live install is required |
-| Grynvault v115 API | `https://api.frontiercrown.com`, owner-reported commit `84e5b7c…` | Owner report, local resolver, and Cloudflare DNS-over-HTTPS, 2026-09-10 | Public DNS returned NXDOMAIN | Exact mocked contract passes, but Grynvault tools cannot work live until DNS is published; no invoice was created |
+| Grynvault v116 API | `https://app.frontiercrown.com`, commit `ea6880a2…` | Live health check plus ephemeral signed read-only account canary, 2026-09-10 | Passed; replay rejected 401 | Account contract live; invoice creation was not invoked |
 
 ## Live test record template
 

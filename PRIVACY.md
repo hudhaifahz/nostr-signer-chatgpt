@@ -34,7 +34,7 @@ terminal host, operating system, and selected Nostr relays have their own data p
 
 The NIP-07 setup page listens only on `127.0.0.1`. Live pairing, reads, and publishing contact only the
 Nostr relays configured by the user or installation. Grynvault tools contact the fixed
-`https://api.frontiercrown.com` origin after the user invokes them. The software
+`https://app.frontiercrown.com` origin after the user invokes them. The software
 does not send data to a project-owned analytics service.
 
 ## Your control

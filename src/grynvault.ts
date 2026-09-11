@@ -4,7 +4,7 @@ import { assertNoNsec } from "./security.js";
 import type { NostrSignerService } from "./service.js";
 import type { EventTemplate, SignedEvent } from "./types.js";
 
-export const GRYNVAULT_API_BASE = "https://api.frontiercrown.com";
+export const GRYNVAULT_API_BASE = "https://app.frontiercrown.com";
 const AUTH_KIND = 27_235;
 const AUTH_TTL_MS = 55_000;
 const RESPONSE_LIMIT = 256_000;

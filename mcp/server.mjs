@@ -11321,7 +11321,7 @@ function publicError(error2) {
 }
 
 // src/grynvault.ts
-var GRYNVAULT_API_BASE = "https://api.frontiercrown.com";
+var GRYNVAULT_API_BASE = "https://app.frontiercrown.com";
 var AUTH_KIND = 27235;
 var AUTH_TTL_MS = 55e3;
 var RESPONSE_LIMIT = 256e3;
