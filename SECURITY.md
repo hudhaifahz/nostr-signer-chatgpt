@@ -120,4 +120,4 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 
 ## Reporting a vulnerability
 
-This is a local release candidate and does not yet publish a security mailbox. Report privately to the local project maintainer and include the affected version, impact, minimal reproduction, and proposed embargo window. Do not include real keys, pairing URIs, tokens, NIP-44 plaintext, or user data. Before any public or marketplace release, the release owner must add and verify a private security contact and response targets.
+Use [GitHub private vulnerability reporting](https://github.com/hudhaifahz/nostr-signer-chatgpt/security/advisories/new) and include the affected version, impact, minimal reproduction, and proposed embargo window. Do not include real keys, pairing URIs, tokens, NIP-04/NIP-44 plaintext, or user data. This community public beta has no guaranteed response time; marketplace submission requires published response targets.

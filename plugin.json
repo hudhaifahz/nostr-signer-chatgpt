@@ -3,7 +3,7 @@
   "name": "nostr-signer-chatgpt",
   "version": "0.4.0",
   "homepage": "https://frontiercrown.com/portal",
-  "repository": "https://github.com/aya-skaur/nostr-signer-chatgpt",
+  "repository": "https://github.com/hudhaifahz/nostr-signer-chatgpt",
   "description": "Sign with Alby, nos2x, or a remote signer without exposing an nsec.",
   "author": {
     "name": "Nostr Signer contributors"

@@ -2,7 +2,7 @@
 
 ## Before opening a report
 
-Run `npm run check`, then read the troubleshooting and compatibility sections. Search existing issues
+Run `npm run check`, then read the troubleshooting and compatibility sections. Search [existing issues](https://github.com/hudhaifahz/nostr-signer-chatgpt/issues)
 for the exact error, browser, signer, and version.
 
 ## Bug and compatibility reports
@@ -14,9 +14,9 @@ account identifier.
 
 ## Security reports
 
-Do not file exploitable security details in a public issue. Before public distribution, the release
-owner must configure a private security-advisory path or verified security mailbox and publish its
-response targets in `SECURITY.md`.
+Do not file exploitable security details in a public issue. Use the repository's
+[private vulnerability report](https://github.com/hudhaifahz/nostr-signer-chatgpt/security/advisories/new)
+and follow `SECURITY.md`.
 
 ## Current support level
 
