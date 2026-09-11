@@ -83,7 +83,7 @@ field. Public-beta candidate; compatibility testers wanted. `[URL]`
 
 ## Launch order
 
-1. Publish a public repository and immutable `v0.3.0` release artifact labeled **local public beta**.
+1. Publish a public repository and immutable `v0.4.0` release artifact labeled **local public beta**.
 2. Ask 5–10 technical testers for versioned compatibility reports.
 3. Fix release-blocking results and publish the tested matrix.
 4. Post the technical launch on Stacker News and Nostr.

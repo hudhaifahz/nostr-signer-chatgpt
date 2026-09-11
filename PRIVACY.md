@@ -2,7 +2,7 @@
 
 Effective date: 2026-09-10
 
-Nostr Signer v0.3.0 is local software, not a hosted service. This notice describes the code in this
+Nostr Signer v0.4.0 is local software, not a hosted service. This notice describes the code in this
 repository. Any future hosted edition must publish its own operator identity, subprocessors, retention
 periods, deletion process, and jurisdiction-specific disclosures before accepting users.
 
@@ -15,6 +15,8 @@ periods, deletion process, and jurisdiction-specific disclosures before acceptin
   account/invoice response when the user explicitly invokes those tools.
 - NIP-44 plaintext or ciphertext only when the user explicitly invokes those advanced tools.
 - Short-lived pairing/session metadata held in process memory.
+- A third-party NIP-46 app's public client key, self-reported name, requested permissions, and exact
+  approval request while its short-lived bridge is active.
 
 ## What it does not collect
 
@@ -30,12 +32,20 @@ expiry, or process exit. Structured logs redact known sensitive values and do no
 event content, pairing URIs, NIP-44 plaintext, tokens, or private keys. The AI host, browser extension,
 terminal host, operating system, and selected Nostr relays have their own data practices.
 
+The generated third-party-app `bunker://` link contains a connection secret. It is displayed only on
+the loopback page, is not exposed as an MCP tool, and is erased from process state after one approved
+connection or when the bridge stops or expires. The app may store its copy according to its own policy.
+
 ## Network destinations
 
 The NIP-07 setup page listens only on `127.0.0.1`. Live pairing, reads, and publishing contact only the
 Nostr relays configured by the user or installation. Grynvault tools contact the fixed
 `https://app.frontiercrown.com` origin after the user invokes them. The software
 does not send data to a project-owned analytics service.
+
+When third-party-app mode is active, the selected relays also carry encrypted NIP-46 requests and
+responses. Those relays cannot read the RPC payload but can observe timing, IP addresses, ephemeral
+communication public keys, and event routing tags.
 
 ## Your control
 

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { BunkerSigner, createNostrConnectURI, parseBunkerInput } from "nostr-tools/nip46";
+import { decrypt as nip04Decrypt, encrypt as nip04Encrypt } from "nostr-tools/nip04";
 import { decrypt, encrypt, getConversationKey } from "nostr-tools/nip44";
 import { finalizeEvent, generateSecretKey, getPublicKey } from "nostr-tools/pure";
 import { assertEventTemplate, assertHexPubkey, assertSignedEvent } from "./events.js";
@@ -61,6 +62,33 @@ export class NostrToolsRemoteSigner implements RemoteSigner {
       );
     } catch {
       throw new Error("The remote signer rejected or could not complete nip44_encrypt.");
+    }
+  }
+
+  async nip04Encrypt(pubkey: string, plaintext: string): Promise<string> {
+    assertHexPubkey(pubkey);
+    assertNoNsec(plaintext);
+    try {
+      return await withTimeout(
+        this.signer.nip04Encrypt(pubkey, plaintext),
+        this.timeoutMs,
+        "nip04_encrypt",
+      );
+    } catch {
+      throw new Error("The remote signer rejected or could not complete nip04_encrypt.");
+    }
+  }
+
+  async nip04Decrypt(pubkey: string, ciphertext: string): Promise<string> {
+    assertHexPubkey(pubkey);
+    try {
+      return await withTimeout(
+        this.signer.nip04Decrypt(pubkey, ciphertext),
+        this.timeoutMs,
+        "nip04_decrypt",
+      );
+    } catch {
+      throw new Error("The remote signer rejected or could not complete nip04_decrypt.");
     }
   }
 
@@ -158,6 +186,17 @@ export class SimulatedSigner implements RemoteSigner {
     assertHexPubkey(pubkey);
     assertNoNsec(plaintext);
     return encrypt(plaintext, getConversationKey(this.secretKey, pubkey));
+  }
+
+  async nip04Encrypt(pubkey: string, plaintext: string): Promise<string> {
+    assertHexPubkey(pubkey);
+    assertNoNsec(plaintext);
+    return nip04Encrypt(this.secretKey, pubkey, plaintext);
+  }
+
+  async nip04Decrypt(pubkey: string, ciphertext: string): Promise<string> {
+    assertHexPubkey(pubkey);
+    return nip04Decrypt(this.secretKey, pubkey, ciphertext);
   }
 
   async nip44Decrypt(pubkey: string, ciphertext: string): Promise<string> {

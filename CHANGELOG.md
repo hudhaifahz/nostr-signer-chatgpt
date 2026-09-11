@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-09-10
+
+- Add a loopback-only Grynvault browser handoff for signing into the live account dashboard from the
+  Codex in-app browser without exposing a private key.
+- Add an experimental NIP-46 remote-signer mode for Noornote, YakiHonne, and compatible clients using
+  a one-client, short-lived `bunker://` link.
+- Support both NIP-44 and legacy NIP-04 encrypted NIP-46 RPC transport, plus approval-gated event
+  signing and NIP-04/NIP-44 encryption operations.
+- Add request replay/timestamp/size bounds, one-use connection secrets, permission checks, exact local
+  approval, and in-memory key erasure.
+- Record live Noornote 1.5.3 and YakiHonne web login interoperability while leaving client-side signing
+  and publishing claims unverified.
+
 ## 0.3.0 — 2026-09-10
 
 - Prepare a claim-safe local public beta without claiming universal or hosted compatibility.

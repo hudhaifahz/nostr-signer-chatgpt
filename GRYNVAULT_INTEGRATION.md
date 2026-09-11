@@ -1,9 +1,9 @@
 # Grynvault integration contract
 
-Implemented against CrownFrontier v116 at `https://app.frontiercrown.com`. The API/dashboard health
-check and an ephemeral signed, read-only account canary passed at exact commit
-`ea6880a2d539ff4df3a5571b8108a954b4f22a6c` on 2026-09-10. The canary received the v116 account,
-Drive, and Arkade response fields; replaying its single-use challenge returned 401. It created no invoice.
+Implemented against CrownFrontier v117 at `https://app.frontiercrown.com`. The API/dashboard health
+check and exact signed in-app browser handoff passed at exact commit
+`7517fea8fe2a46ee96321e2ba694e91f781a4fc0` on 2026-09-10. The handoff received the v117 account,
+Drive, Arkade, NIP-05, and payment-history response fields. It created no invoice.
 
 ## MCP tools
 

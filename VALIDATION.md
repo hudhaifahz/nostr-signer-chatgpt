@@ -7,7 +7,7 @@ Validated on 2026-09-10 in a local macOS checkout. This record distinguishes sim
 - macOS Darwin 24.6.0 arm64
 - Node.js 24.7.0 (project minimum: 22)
 - npm 11.5.1
-- Release candidate: 0.3.0
+- Release candidate: 0.4.0
 
 ## Passing release gate
 
@@ -15,18 +15,26 @@ Validated on 2026-09-10 in a local macOS checkout. This record distinguishes sim
 
 - Biome formatting and lint checks: clean
 - strict TypeScript check: clean
-- Vitest: 8 files and 27 tests passed
+- Vitest: 9 files and 32 tests passed
 - TypeScript compilation and esbuild release bundle: passed
-- spawned stdio smoke test: the committed bundle exposed all 18 intended MCP tools with complete behavior annotations
+- spawned stdio smoke test: the bundle exposed all 19 intended MCP tools with complete behavior annotations
 - repository-local release validator: passed
-- Nostr skill validator: passed for v0.3.0
-- Agent Plugin validator: passed for v0.3.0
+- Nostr skill validator: passed for v0.4.0
+- Agent Plugin validator: passed for v0.4.0
 
 Additional checks passed:
 
 - `npm audit --audit-level=moderate`: 0 known vulnerabilities
 - simulated end-to-end demo: prepared, signed, signature-verified, published, acknowledged, and queried a kind:1 event entirely in memory
 - NIP-07 bridge integration: connected by public key, queued an exact event over the loopback HTTP boundary, rejected unauthenticated access, returned an extension-produced signature, and passed it through the normal verification pipeline
+- third-party NIP-46 client bridge: NIP-04 and NIP-44 encrypted handshake tests, one-client binding,
+  rejection, public-key discovery, exact event approval, and returned signature verification passed
+- public-relay interoperability: a standard `nostr-tools` BunkerSigner connected across `nos.lol`,
+  `nostr.mom`, and `relay.primal.net`, discovered the expected public key, and received a verified signed
+  kind:1 event through encrypted NIP-46 RPC; that kind:1 event was not published as a public note
+- live in-app browser login: Noornote 1.5.3 completed its legacy NIP-04 encrypted NIP-46 handshake and
+  reported authentication success; YakiHonne web completed the same `bunker://` flow and navigated to
+  its signed-in home page. No post, follow, DM, encryption request, or publication was attempted.
 - package dry run: included portable and Codex manifests, skill, source, tests, documentation, third-party license texts, and the standalone MCP bundle
 - detached clean-package simulation: copied only releasable source (no Git metadata, dependencies,
   outputs, or work files), installed from the lockfile, then passed the complete release gate
@@ -36,26 +44,33 @@ Additional checks passed:
 ## Release artifact
 
 - Entrypoint: `mcp/server.mjs`
-- Size: 991,566 bytes
-- SHA-256: `2a69da7807e2274f47fc48c347ce5c52e591cfc04e7f91098448eaef598e30d5`
+- Size: 1,035,669 bytes
+- SHA-256: `7186638ac7a89623873d6779a479c30c7870796ff10f60615abd90adf3bee20e`
 - Third-party bundle inventory: 13 packages with preserved license texts
 
 ## What this proves
 
-The local implementation, security gates, simulated protocol-independent flow, NIP-07 loopback request bridge, MCP transport, manifest structure, package contents, ordinary-user setup page, and exact mocked Grynvault v115 exchanges work in this environment. The private signing key is absent from every designed input and state path; signing is delegated through NIP-07 or NIP-46.
+The local implementation, security gates, simulated protocol-independent flow, NIP-07 loopback request
+bridge, third-party NIP-46 client bridge, MCP transport, manifest structure, package contents,
+ordinary-user setup page, and exact mocked Grynvault exchanges work in this environment. The private
+signing key is absent from every designed input and state path; signing is delegated through NIP-07 or
+NIP-46.
 
 ## What remains unproven
 
 - No current Alby, nos2x, or other real NIP-07 extension was connected during automated validation.
 - No real Amber, nsec.app, Clave, or other bunker-compatible signer was paired during this validation.
-- No event was published to a public relay.
+- No user event was published as a public note. The NIP-46 live test necessarily exchanged encrypted
+  kind:24133 RPC events through public relays.
 - ChatGPT Work/web remote HTTPS or Secure MCP Tunnel connectivity was not configured or tested.
 - OpenClaw installation and tool discovery were not available to test in this environment.
-- The production Grynvault v116 health check and an ephemeral signed, read-only account canary passed
-  at commit `ea6880a2…`; the single-use challenge replay was rejected with 401. The plugin's invoice
-  creation tools were not invoked against production, and no invoice was created.
+- The production Grynvault v117 health check and exact in-app browser handoff passed at commit
+  `7517fea8…`. The plugin's invoice creation tools were not invoked against production, and no invoice
+  was created.
 - Marketplace installation and public distribution were deliberately not performed.
 
-One live local NIP-07 flow was reported by the user on 2026-09-10, but the browser, extension, and
-versions were not captured. That observation is not enough for a named provider claim. Before making
-one, execute and record the live matrix in `COMPATIBILITY.md` without using production keys or accounts.
+One live local NIP-07 flow was observed on 2026-09-10, but the extension name/version was not captured.
+That observation is not enough for a named provider claim. Noornote and YakiHonne login compatibility
+is observed, but their signing and publication operations remain unverified. Before extending either
+claim, execute and record the live matrix in `COMPATIBILITY.md` without using production keys or
+accounts.

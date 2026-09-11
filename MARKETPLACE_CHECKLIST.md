@@ -1,6 +1,6 @@
 # Marketplace and publication checklist
 
-This checklist is deliberately not complete in v0.3.0. Public submission requires a hosted service,
+This checklist is deliberately not complete in v0.4.0. Public submission requires a hosted service,
 current evidence, verified identity, and separate owner approval.
 
 ## Security and privacy

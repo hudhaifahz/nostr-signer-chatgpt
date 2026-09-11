@@ -28,7 +28,7 @@ export function createMcpServer(
   grynvault = new GrynvaultService(service),
 ): McpServer {
   const server = new McpServer(
-    { name: "nostr-signer-chatgpt", version: "0.3.0" },
+    { name: "nostr-signer-chatgpt", version: "0.4.0" },
     {
       instructions:
         "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned. Grynvault account access and in-app browser handoffs are read-only but still require signed-access confirmation. A handoff code lets only the browser holding its separate secret claim the dashboard. Grynvault invoice preparation never creates an invoice; only the separate create tool may do so after explicit confirmation. A pending invoice or checkout redirect is never payment, settlement, entitlement, or NIP-05 activation evidence.",

@@ -1,5 +1,6 @@
 import { GrynvaultApiClient, GrynvaultService } from "./grynvault.js";
 import { Nip07Bridge } from "./nip07.js";
+import { Nip46ClientBridge, RelayNip46ServerTransport } from "./nip46-server.js";
 import { NostrRelayGateway, relayUrlsFromEnvironment } from "./relays.js";
 import { SafeLogger } from "./security.js";
 import { NostrSignerService } from "./service.js";
@@ -18,12 +19,19 @@ export function createRuntime(): {
   const signers = new Nip46SignerFactory(logger, requestTimeoutMs);
   const nip07 = new Nip07Bridge(requestTimeoutMs);
   const relays = new NostrRelayGateway(undefined, Math.min(requestTimeoutMs, 15_000));
+  const clientBridge = new Nip46ClientBridge(
+    session,
+    new RelayNip46ServerTransport(),
+    () => Date.now(),
+    sessionTtlMs,
+  );
   const service = new NostrSignerService(
     session,
     signers,
     nip07,
     relays,
     relayUrlsFromEnvironment(),
+    clientBridge,
   );
   const grynvault = new GrynvaultService(service, new GrynvaultApiClient());
   return { service, grynvault, logger };

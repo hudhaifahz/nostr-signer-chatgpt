@@ -2,11 +2,11 @@
 
 A local-first, open-source signer bridge that lets ChatGPT Work or Codex request Nostr signatures from Alby, nos2x, another NIP-07 browser extension, or an advanced NIP-46 remote signer. The signer keeps the private key. This project never needs, accepts, stores, logs, or transmits an `nsec`.
 
-> Release status: v0.3.0 local public-beta candidate. The simulated path, loopback bridge, portable release gate, annotated MCP surface, and Grynvault in-app browser handoff are tested locally. One live local NIP-07 flow was reported on 2026-09-10, but its browser and signer versions were not captured, so provider-specific compatibility and public relay readback remain unverified.
+> Release status: v0.4.0 local public beta. The simulated path, loopback bridge, portable release gate, annotated MCP surface, Grynvault in-app browser handoff, and third-party NIP-46 client bridge are tested. Live Brave NIP-07, Grynvault v117, Noornote v1.5.3, and YakiHonne web sign-ins succeeded on 2026-09-10. The signer extension name/version was not captured, and no third-party-client post was signed or published during those login tests.
 
 ## Will it work for everyone?
 
-Not yet. The current release is for desktop users who can run Node.js 22+, connect a local stdio MCP
+Not universally. The current release is for desktop users who can run Node.js 22+, connect a local stdio MCP
 server, and open the approval page in a Chrome- or Firefox-family profile with a compatible NIP-07
 extension. It is not a hosted ChatGPT-web service, mobile signer, or unattended signing daemon.
 
@@ -19,6 +19,23 @@ connection to that verified Nostr identity. A hosted edition also needs per-user
 abuse controls, privacy/retention operations, and an independent security review. See
 `LAUNCH_READINESS.md`, `COMPATIBILITY.md`, and `HOSTED_SERVICE.md`.
 
+## Install in Codex
+
+Clone the public source, verify the release tag, build it locally, and register the bundled MCP server.
+Then start a new Codex task so its tools are loaded:
+
+```bash
+git clone --branch v0.4.0 https://github.com/Grynvault/nostr-signer-chatgpt.git
+cd nostr-signer-chatgpt
+npm ci
+npm run check
+codex mcp add nostr-signer -- node "$PWD/mcp/server.mjs"
+```
+
+The repository includes portable plugin manifests, but a one-command Grynvault marketplace wrapper is
+not published yet. Inspect the source and release tag before installing; the local signer bridge runs
+with the permissions of the desktop user who starts it.
+
 ## The ordinary-user journey
 
 1. Install and start the plugin locally.
@@ -29,6 +46,18 @@ abuse controls, privacy/retention operations, and an independent security review
 6. The local page shows the exact pending operation. Click **Continue in extension**, then approve in the extension if it asks.
 7. Separately tell ChatGPT or Codex to publish. A post is reported live only when at least one relay acknowledges it.
 
+To use the same signer inside a NIP-46-capable app such as Noornote or YakiHonne, connect the browser
+extension first, click **Create app sign-in link**, copy the private `bunker://` link, and paste it into
+the app's **Remote signer** or **Bunker** login. Return to the local page to approve the exact client
+public key and every subsequent signing, encryption, or decryption request. The link expires, is valid
+for one approved client, and must be treated like a temporary password.
+
+For Grynvault in the Codex in-app browser, open `https://frontiercrown.com/portal`, click **Sign in with
+Codex signer**, and ask Codex to approve the exact short code using this plugin. The portal tab keeps a
+separate high-entropy secret; the short code only locates the pending request. The signed authorization
+returns that public key's read-only account dashboard to the originating tab and does not publish an
+event, create an invoice, change settlement, or grant wallet custody.
+
 Never paste an `nsec`, raw private key, seed phrase, or backup into ChatGPT, Codex, the setup page, or a tool call. If an `nsec` was exposed, rotate it in a trusted signer outside this project.
 
 ## Architecture
@@ -38,11 +67,15 @@ flowchart LR
   U[User] --> C[ChatGPT Work or Codex]
   U --> E[Alby, nos2x, or NIP-07 extension]
   U --> S[Advanced NIP-46 signer]
+  U --> A[Noornote, YakiHonne,
+  or another NIP-46 app]
   C -->|focused MCP tools| P[Local plugin process]
   B[Local approval page\n127.0.0.1 only] <--> P
   B -->|window.nostr request| E
   E -->|signed or encrypted result| B
   P -->|NIP-46 encrypted requests| R[(Configured Nostr relays)]
+  A -->|NIP-46 encrypted requests| R
+  R -->|approval-gated responses| P
   R -->|NIP-46 events| S
   S -->|approve or reject| R
   P -->|verified signed event\nafter separate publish intent| R
@@ -57,6 +90,9 @@ The code separates the signer interface, session/intent state, relay gateway, MC
 
 - Primary NIP-07 bridge for Alby, nos2x, and compatible extensions: one local connection, one queued approval at a time, random request IDs, stale-response rejection, and no private-key access.
 - Advanced `bunker://` and client-generated `nostrconnect://` flows using `nostr-tools` NIP-46 support.
+- Experimental remote-signer mode for third-party NIP-46 clients. It creates a one-client, short-lived
+  `bunker://` link, accepts both NIP-44 and legacy NIP-04 encrypted RPC transport, and requires local
+  approval for connect, event signing, NIP-04, and NIP-44 operations.
 - `get_public_key`, exact generic-event and kind:1 preparation, bound `sign_event`, `nip44_encrypt`, `nip44_decrypt`, separately confirmed `publish_event`, and bounded relay reads for kinds 0 and 1.
 - Exact unsigned-event validation, signature/hash verification, signer-pubkey binding, one-use signing intents, timeouts, session expiry, and stale-pairing rejection.
 - Per-relay publication acknowledgements. No success claim when every relay rejects or times out.
@@ -66,6 +102,8 @@ The code separates the signer interface, session/intent state, relay gateway, MC
 - Signed Grynvault account-dashboard access plus separately prepared/confirmed supporter and 2,000-sat
   `name@frontiercrown.com` NIP-05 invoice requests. An invoice response is always reported as pending,
   never as payment or settlement.
+- Short-lived Grynvault in-app browser handoff approval bound to the exact HTTPS URL, challenge, code,
+  and payload hash. Only the browser holding the separate secret can claim its read-only dashboard.
 - Portable Agent Plugins manifests plus the scaffolded Codex compatibility manifest.
 - A deterministic safe simulated signer/relay path for CI and onboarding.
 
@@ -85,6 +123,11 @@ Set `NOSTR_RELAYS` to comma-separated `wss://` relay URLs before live pairing or
 The setup page binds to and accepts only `127.0.0.1`. Open it in the browser profile containing your NIP-07 extension—not the Codex in-app browser unless that browser actually has such an extension. Connect once and keep the tab open while signing. The page queues the exact request and requires a browser-side click before calling `window.nostr`. That interaction gate is not proof of human presence when the host also has browser automation, so the extension's own approval policy remains the final protection.
 
 The advanced section accepts a `bunker:` URI only in memory and never logs it. A generated `nostrconnect:` URI contains an ephemeral pairing secret; treat it as sensitive and do not post it publicly.
+
+The experimental third-party-app section makes this plugin act as the remote signer. Its generated
+`bunker://` link is shown only on the loopback page and is not exposed as an MCP tool. One client can
+be connected at a time. Stopping the bridge, restarting the process, or reaching the session expiry
+invalidates that app connection; reconnect the app with a new link.
 
 ## Local demo
 
@@ -161,6 +204,7 @@ Relevant OpenAI guidance: [plugin packaging](https://developers.openai.com/plugi
 | `query_events` | Read verified public kind 0/1 events | Bounded filters and result count |
 | `disconnect_signer` | Forget session and intents | Explicit confirmation |
 | `get_grynvault_account_dashboard` | Sign and retrieve the connected pubkey's read-only Grynvault dashboard | Explicit signed-access confirmation; creates no invoice |
+| `approve_grynvault_browser_handoff` | Approve the exact short code shown by a Grynvault in-app browser tab | Explicit confirmation; read-only dashboard only; no publication or invoice |
 | `prepare_grynvault_supporter_invoice` | Prepare an exact 21–1,000,000-sat donation or 2,100-sat/30-day request | No signing or invoice creation |
 | `create_grynvault_supporter_invoice` | Sign and submit one prepared supporter request | Separate explicit invoice-creation confirmation; returns pending only |
 | `prepare_grynvault_nip05_invoice` | Check and prepare a 2,000-sat `name@frontiercrown.com` request | No signing, reservation, or invoice creation |
@@ -179,11 +223,10 @@ Supporter membership and paid NIP-05 remain different products. A one-time suppo
 browser redirect, or `pending` response does not activate a supporter entitlement or NIP-05 identifier;
 only separately verified BTCPay settlement can do that.
 
-The v115 owner reports production deployed at commit `84e5b7cbe91bdbbdd0118228e3bd4156e8411b65`.
-However, both the local resolver and Cloudflare's public DNS-over-HTTPS service reported the exact API
-hostname as nonexistent on 2026-09-10. The plugin's mocked contract passes, but its Grynvault tools
-cannot work live until that hostname resolves and serves v115. No signed POST or invoice creation was
-used for validation.
+Production v117 is live at commit `7517fea8fe2a46ee96321e2ba694e91f781a4fc0`. A live in-app browser
+handoff approved the exact signed request and returned the originating tab's dashboard for pubkey
+`0ab377…9b5bd`; the portal then displayed account, Drive, Arkade, NIP-05, and settled-payment status.
+No invoice was created, no Nostr event was published, and no settlement changed during that test.
 
 See `GRYNVAULT_INTEGRATION.md` for the exact MCP inputs, HTTP bodies, and signature tags.
 
@@ -192,8 +235,9 @@ See `GRYNVAULT_INTEGRATION.md` for the exact MCP inputs, HTTP bodies, and signat
 | Signer | Intended connection | Automated evidence | Live evidence in this RC |
 |---|---|---|---|
 | Simulated signer | In-process test adapter | Passing | Not a live signer |
-| Alby | NIP-07 browser bridge | Bridge tests only | Not live-tested |
-| nos2x | NIP-07 browser bridge | Bridge tests only | Not live-tested |
+| Alby | NIP-07 browser bridge | Bridge tests | Provider/version not captured in live test |
+| nos2x | NIP-07 browser bridge | Bridge tests | Provider/version not captured in live test |
+| Unidentified compatible extension in Brave | NIP-07 browser bridge | Same bridge tests | Live public-key connection and v117 Grynvault handoff passed |
 | Amber | NIP-46 / bunker-compatible target | Protocol path only | Not tested |
 | nsec.app | NIP-46 / bunker-compatible target | Protocol path only | Not tested |
 | Clave | NIP-46 / bunker-compatible target | Protocol path only | Not tested |
@@ -243,16 +287,19 @@ See `VALIDATION.md` for the exact local evidence and its limits.
 
 ## Limitations and roadmap
 
-- One live local NIP-07 flow was user-reported, but the signer/browser versions were not captured. Live Alby, nos2x, NIP-46 signer, and relay-specific compatibility is not yet proven.
+- One live Brave NIP-07 flow and exact Grynvault handoff passed, but the extension name/version was not captured. Named Alby, nos2x, NIP-46 signer, and relay-specific compatibility is not yet proven.
 - Sessions are deliberately non-persistent; reconnect after every process restart or expiry.
 - The NIP-07 browser tab must remain open because browser extensions expose `window.nostr` only to browser pages.
 - An MCP Apps iframe is not used for signing because it does not automatically inherit the user's ordinary browser extensions or their permission model.
-- Signer `auth_url` challenges are not surfaced in v0.3.0; NIP-46 signers that rely on them may not complete pairing.
-- NIP-46 relay authentication, signer relay switching, offline queues, multi-account selection, and automatic event discovery are not included.
+- Signer `auth_url` challenges are not surfaced in v0.4.0; NIP-46 signers that rely on them may not complete pairing.
+- NIP-46 relay authentication, dynamic relay switching, offline queues, simultaneous third-party-client
+  sessions, multi-account selection, and automatic event discovery are not included.
 - ChatGPT Work/web needs a remote/tunneled MCP transport, authentication, privacy disclosures, and workspace/public review.
-- The v115 Grynvault deployment is owner-reported at exact commit `84e5b7c…`, but its hostname did not
-  resolve from this validation environment; the signed production path remains independently unproven.
-  Supporter/NIP-05 creation was not called live, so no invoice or payment was created.
+- Noornote v1.5.3 and YakiHonne web both completed live remote-signer login in the Codex in-app browser.
+  No post, follow, direct message, encryption request, or publication was attempted, so those operations
+  remain unverified on the named clients.
+- The v117 Grynvault browser handoff is live and proven. Supporter/NIP-05 creation was not called during
+  the handoff test, so no invoice or payment was created.
 - Future work: real compatibility matrix, native-browser handoff helper, the separately gated hosted architecture in `HOSTED_SERVICE.md`, a verified OpenClaw install, and an optional hardware-backed local signer adapter that still never exports a private key.
 
 ## License

@@ -12,6 +12,8 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 
 - User identity and the signer-controlled private key, which is out of scope and must remain in the signer.
 - Ephemeral NIP-46 client key, connection secret, remote signer authorization state, and relay selection.
+- Ephemeral third-party-client bridge key, one-use bunker secret, connected client public key, declared
+  permissions, and exact queued RPC request.
 - NIP-07 browser-extension permission, loopback anti-CSRF token, exact pending operation, and returned result.
 - Exact unsigned event reviewed by the user, returned signature, publication intent, and relay acknowledgements.
 - NIP-44 plaintext, ciphertext, and decrypted output.
@@ -28,6 +30,10 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 7. **Plugin ↔ Grynvault API:** the API is a fixed HTTPS destination. Signed account reads and invoice
    writes are authorized with exact short-lived Nostr events; API responses and payment state remain
    untrusted until independently verified.
+8. **Third-party Nostr app ↔ client bridge:** the app and its self-reported name are untrusted. The
+   bridge binds one approved client public key, validates signed RPC events, decrypts NIP-44 or legacy
+   NIP-04 transport, enforces declared permissions when present, and queues sensitive operations for
+   local approval before delegating to the actual signer.
 
 ## Threats and controls
 
@@ -45,6 +51,9 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 | Stale session or abandoned pairing | Five-minute pairing timeout; default 30-minute session TTL; restart/disconnect clears memory | Process memory can be inspected by a compromised host |
 | Local hostile webpage attacks setup UI | Loopback binding and Host allowlist, anti-CSRF token, strict CSP, no CORS, bounded body, no-store headers | Malware or a compromised local account can attack the process |
 | Forged or stale NIP-07 response | One pending request, random request ID, session generation, timeout, expected signer pubkey, exact signed-event verification | A malicious extension with page access can return hostile data, which is rejected when invalid |
+| Stolen third-party app link | 192-bit random secret, one successful client binding, 30-minute expiry, local connect approval, secret erased after approval | Anyone who obtains the link before pairing can request connection; verify the displayed client public key |
+| Malicious NIP-46 client | Signed/encrypted RPC, one bound client, one queued request, requested-permission enforcement, exact local approval, signer approval, size and timestamp bounds | An approved client may repeatedly prompt, and empty permission declarations rely on per-request approval |
+| Legacy NIP-04 transport weaknesses | Used only for NIP-46 RPC compatibility; exact signed event envelope, bound client, short-lived session, per-request approval | NIP-04 lacks NIP-44's modern authenticated-encryption properties; prefer NIP-44 clients when available |
 | Sensitive errors/logs | Structured redaction for nsec, URI secrets, bearer tokens, plaintext, and event content; no request-body logging | Dependency-level console output may change; audit upgrades |
 | Denial of service | Bounded body, content, tags, relays, filters, query results, and timeouts | Public relays and signers remain availability dependencies |
 | Duplicate or falsely settled invoice | Prepare/create separation; one-use operation; exact payload hash; no automatic retry; redirects rejected; pending-only result | A timeout after submission can leave the outcome unknown; inspect the account before retrying |
@@ -56,12 +65,18 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 - Publication is a separate tool call with separate explicit intent. A signature is never automatically published.
 - NIP-44 encryption/decryption requires explicit intent and should not be retried silently after an ambiguous timeout.
 - With NIP-07, the user reviews the queued operation in the loopback page and clicks **Continue in extension**. The extension remains free to show and enforce its own approval.
+- A third-party NIP-46 client must first receive explicit connect approval. Its client name is
+  self-reported and is never sufficient identity evidence. Every event, NIP-04, and NIP-44 request is
+  displayed and approved separately.
 - Never weaken signer confirmation to improve convenience. Signers that auto-approve are outside the protection this project can provide.
 
 ## Replay, timeout, and session rules
 
 - Signing intents expire after two minutes and are consumed before the remote request starts. A timeout or error is terminal; prepare a fresh event.
 - The NIP-07 bridge permits one pending operation at a time, binds the response to a random request ID, and rejects stale or duplicate responses.
+- The third-party client bridge permits one connected client and one pending request at a time, rejects
+  replayed event IDs, ignores requests outside a two-minute timestamp window, consumes the connection
+  secret after approval, and erases its ephemeral key on stop or expiry.
 - Pairing expires after five minutes. Connected sessions expire after 30 minutes by default.
 - A newer pairing/connection generation invalidates late results from older attempts.
 - Signed events are replayable Nostr objects. The session prevents this plugin from publishing the same stored intent twice after any successful acknowledgement, but cannot stop other clients or relays from replaying the event.

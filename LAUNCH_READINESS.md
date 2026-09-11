@@ -18,7 +18,7 @@ Assessment date: 2026-09-10
 | ID | Gate | State |
 |---|---|---|
 | PB-001 | Portable install/build/test commands with no developer-specific paths | Prepared; rerun on clean checkout |
-| PB-002 | Consistent v0.3.0 manifests, source version, changelog, and package metadata | Prepared |
+| PB-002 | Consistent v0.4.0 manifests, source version, changelog, and package metadata | Prepared |
 | PB-003 | Every MCP tool declares read-only, destructive, and open-world behavior | Prepared; smoke test required |
 | PB-004 | CI on Node 22 and 24 | Workflow prepared; not proven until public repository run |
 | PB-005 | No-key boundary, exact-event binding, separate publish confirmation | Implemented and automated tests exist |

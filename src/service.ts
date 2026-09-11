@@ -1,6 +1,11 @@
 import type { Filter } from "nostr-tools/filter";
 import { createKindOneNote } from "./events.js";
 import type { Nip07Bridge, Nip07Operation } from "./nip07.js";
+import type {
+  Nip46ClientBridge,
+  Nip46ClientBridgeView,
+  Nip46ClientRequestView,
+} from "./nip46-server.js";
 import { normalizeRelayUrls } from "./relays.js";
 import { assertNoNsec } from "./security.js";
 import type { SignerSession } from "./session.js";
@@ -21,6 +26,7 @@ export class NostrSignerService {
     private readonly nip07: Nip07Bridge,
     private readonly relays: RelayGateway,
     private readonly defaultRelays: string[],
+    private readonly clientBridge?: Nip46ClientBridge,
     private readonly now: () => number = () => Date.now(),
   ) {}
 
@@ -58,6 +64,34 @@ export class NostrSignerService {
   getSetupUrl(): string {
     if (!this.setupUrl) throw new Error("The local signer setup page is not ready.");
     return this.setupUrl;
+  }
+
+  startClientBridge(relays?: string[]): Nip46ClientBridgeView {
+    return this.requireClientBridge().start(this.selectedRelays(relays));
+  }
+
+  clientBridgeStatus(): Nip46ClientBridgeView {
+    return this.requireClientBridge().view();
+  }
+
+  nextClientBridgeRequest(): Nip46ClientRequestView | null {
+    return this.requireClientBridge().next();
+  }
+
+  approveClientBridgeRequest(
+    requestId: string,
+    confirmed: boolean,
+  ): Promise<Nip46ClientBridgeView> {
+    return this.requireClientBridge().approve(requestId, confirmed);
+  }
+
+  rejectClientBridgeRequest(requestId: string): Promise<Nip46ClientBridgeView> {
+    return this.requireClientBridge().reject(requestId);
+  }
+
+  stopClientBridge(): Nip46ClientBridgeView {
+    this.requireClientBridge().close();
+    return this.requireClientBridge().view();
   }
 
   beginNostrConnect(relays?: string[]): { uri: string; status: SessionView } {
@@ -138,6 +172,7 @@ export class NostrSignerService {
   }
 
   close(): void {
+    this.clientBridge?.destroy();
     this.relays.close();
     this.nip07.close();
     void this.session.disconnect();
@@ -148,5 +183,11 @@ export class NostrSignerService {
     if (values.length === 0)
       throw new Error("No relays are configured. Set NOSTR_RELAYS or provide relays explicitly.");
     return normalizeRelayUrls(values);
+  }
+
+  private requireClientBridge(): Nip46ClientBridge {
+    if (!this.clientBridge)
+      throw new Error("The NIP-46 client bridge is unavailable in this runtime.");
+    return this.clientBridge;
   }
 }

@@ -5,11 +5,15 @@ import type { EventTemplate, RemoteSigner, SignedEvent } from "./types.js";
 
 export type Nip07Operation =
   | { requestId: string; method: "sign_event"; event: EventTemplate }
+  | { requestId: string; method: "nip04_encrypt"; pubkey: string; plaintext: string }
+  | { requestId: string; method: "nip04_decrypt"; pubkey: string; ciphertext: string }
   | { requestId: string; method: "nip44_encrypt"; pubkey: string; plaintext: string }
   | { requestId: string; method: "nip44_decrypt"; pubkey: string; ciphertext: string };
 
 type Nip07OperationInput =
   | { method: "sign_event"; event: EventTemplate }
+  | { method: "nip04_encrypt"; pubkey: string; plaintext: string }
+  | { method: "nip04_decrypt"; pubkey: string; ciphertext: string }
   | { method: "nip44_encrypt"; pubkey: string; plaintext: string }
   | { method: "nip44_decrypt"; pubkey: string; ciphertext: string };
 
@@ -119,6 +123,31 @@ class Nip07RemoteSigner implements RemoteSigner {
     });
     if (typeof result !== "string" || result.length > 100_000)
       throw new Error("The browser extension returned an invalid NIP-44 ciphertext.");
+    return result;
+  }
+
+  async nip04Encrypt(pubkey: string, plaintext: string): Promise<string> {
+    assertHexPubkey(pubkey);
+    assertNoNsec(plaintext);
+    const result = await this.bridge.request(this.generation, {
+      method: "nip04_encrypt",
+      pubkey,
+      plaintext,
+    });
+    if (typeof result !== "string" || result.length > 100_000)
+      throw new Error("The browser extension returned an invalid NIP-04 ciphertext.");
+    return result;
+  }
+
+  async nip04Decrypt(pubkey: string, ciphertext: string): Promise<string> {
+    assertHexPubkey(pubkey);
+    const result = await this.bridge.request(this.generation, {
+      method: "nip04_decrypt",
+      pubkey,
+      ciphertext,
+    });
+    if (typeof result !== "string" || Buffer.byteLength(result, "utf8") > 65_536)
+      throw new Error("The browser extension returned invalid NIP-04 plaintext.");
     return result;
   }
 

@@ -26,12 +26,15 @@ It is not yet a universal ChatGPT-web, mobile, hosted, or unattended-agent signe
 | nos2x | Current release | Source/API design review only | Unverified | Intended, not tested |
 | Firefox-family NIP-07 | Current release | CSP and protocol design only | Unverified | Intended, not tested |
 | NIP-46 signers | Current releases | Automated protocol adapter tests only | Unverified | Advanced experimental path |
+| Generic NIP-46 client bridge | Mock clients using NIP-04 and NIP-44 RPC transport | Automated connect, reject, public-key discovery, and verified event-signing tests | Pass | Protocol core is tested; named clients still need live evidence |
+| Noornote 1.5.3 web | Codex in-app browser, `bunker://`, NIP-04 RPC transport | Live login, 2026-09-10 | Pass | Login interoperability observed; signing and publishing untested |
+| YakiHonne web | Codex in-app browser, `bunker://` | Live login, 2026-09-10 | Pass | Login interoperability observed; signing and publishing untested |
 | Public relays | Real Internet relays | No captured live ACK/readback | Unverified | Do not claim live publication compatibility |
 | ChatGPT Work/web | Remote HTTPS MCP | Not implemented | Not supported | Hosted service is a separate phase |
 | Windows / Linux | Node 22+ | Not run on clean machines | Unverified | Community testers wanted |
 | Mobile | Mobile browser/AI host | Not implemented or tested | Not supported | Do not advertise |
 | OpenClaw bundle | Agent Plugins/Codex bundle mapping | Current documentation review only | Unverified | Package format is intended to load; live install is required |
-| Grynvault v116 API | `https://app.frontiercrown.com`, commit `ea6880a2…` | Live health check plus ephemeral signed read-only account canary, 2026-09-10 | Passed; replay rejected 401 | Account contract live; invoice creation was not invoked |
+| Grynvault v117 API | `https://app.frontiercrown.com`, commit `7517fea8…` | Live health check plus exact in-app browser handoff, 2026-09-10 | Pass | Read-only dashboard handoff live; invoice creation was not invoked |
 
 ## Live test record template
 

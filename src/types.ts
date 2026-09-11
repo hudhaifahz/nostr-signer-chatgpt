@@ -23,6 +23,8 @@ export interface RemoteSigner {
   readonly kind: "nip07" | "nip46" | "simulated";
   getPublicKey(): Promise<string>;
   signEvent(event: EventTemplate): Promise<SignedEvent>;
+  nip04Encrypt(pubkey: string, plaintext: string): Promise<string>;
+  nip04Decrypt(pubkey: string, ciphertext: string): Promise<string>;
   nip44Encrypt(pubkey: string, plaintext: string): Promise<string>;
   nip44Decrypt(pubkey: string, ciphertext: string): Promise<string>;
   close(): Promise<void>;

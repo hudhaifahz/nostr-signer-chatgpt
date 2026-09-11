@@ -1,6 +1,7 @@
 import { request } from "node:http";
 import { describe, expect, it } from "vitest";
 import { Nip07Bridge } from "../src/nip07.js";
+import { Nip46ClientBridge, type Nip46ServerTransport } from "../src/nip46-server.js";
 import { SimulatedRelayGateway } from "../src/relays.js";
 import { SafeLogger } from "../src/security.js";
 import { NostrSignerService } from "../src/service.js";
@@ -12,18 +13,26 @@ describe("loopback NIP-07 setup page", () => {
   it("connects and completes a signature through the HTTP bridge", async () => {
     const logger = new SafeLogger(() => {});
     const bridge = new Nip07Bridge(1_000);
+    const session = new SignerSession(logger);
+    const clientTransport: Nip46ServerTransport = {
+      subscribe: () => ({ close: () => {} }),
+      publish: async () => {},
+      close: () => {},
+    };
     const service = new NostrSignerService(
-      new SignerSession(logger),
+      session,
       {} as Nip46SignerFactory,
       bridge,
       new SimulatedRelayGateway(),
       ["ws://127.0.0.1:7777"],
+      new Nip46ClientBridge(session, clientTransport),
     );
     const ui = await startLocalSetupUi(service, logger, 0);
     service.setSetupUrl(ui.url);
     try {
       const page = await (await fetch(ui.url)).text();
       expect(page).toContain("Connect browser extension");
+      expect(page).toContain("Sign in to Noornote, YakiHonne, and other NIP-46 apps");
       expect(page).toContain("Advanced: remote NIP-46 signer");
       const tokenMatch = page.match(/const token=("[^"]+")/u);
       const serializedToken = tokenMatch?.[1];
@@ -43,6 +52,16 @@ describe("loopback NIP-07 setup page", () => {
       const pubkey = await extension.getPublicKey();
       await call("/api/nip07/connect", { pubkey });
       expect(service.status()).toMatchObject({ state: "connected", signerType: "nip07", pubkey });
+
+      const clientBridge = await call("/api/client-bridge/start", {
+        relays: ["ws://127.0.0.1:7777"],
+      });
+      expect(clientBridge.bunkerUrl).toMatch(/^bunker:\/\/[0-9a-f]{64}\?/u);
+      const clientStatus = await call("/api/client-bridge/next", {});
+      expect(clientStatus).toMatchObject({
+        request: null,
+        status: { state: "waiting_for_client" },
+      });
 
       const intent = service.prepareNote("browser bridge test");
       const signing = service.signEvent(intent.intentId, true);

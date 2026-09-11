@@ -187,6 +187,18 @@ export class SignerSession {
     return this.requireConnected().nip44Encrypt(pubkey, plaintext);
   }
 
+  async nip04Encrypt(pubkey: string, plaintext: string, confirmed: boolean): Promise<string> {
+    if (!confirmed) throw new Error("Explicit encryption confirmation is required.");
+    return this.requireConnected().nip04Encrypt(pubkey, plaintext);
+  }
+
+  async nip04Decrypt(pubkey: string, ciphertext: string, confirmed: boolean): Promise<string> {
+    if (!confirmed) throw new Error("Explicit decryption confirmation is required.");
+    const plaintext = await this.requireConnected().nip04Decrypt(pubkey, ciphertext);
+    assertNoNsec(plaintext);
+    return plaintext;
+  }
+
   async decrypt(pubkey: string, ciphertext: string, confirmed: boolean): Promise<string> {
     if (!confirmed) throw new Error("Explicit decryption confirmation is required.");
     const plaintext = await this.requireConnected().nip44Decrypt(pubkey, ciphertext);
