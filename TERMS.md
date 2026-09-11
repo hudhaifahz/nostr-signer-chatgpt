@@ -1,4 +1,4 @@
-# Terms — local public beta
+# Terms — local and hosted public beta
 
 Nostr Signer is provided under the Apache License 2.0 in `LICENSE`. The local public beta is offered
 without a service-level commitment or guarantee that a signer, browser, AI host, relay, or network will
@@ -12,6 +12,6 @@ Public Nostr publication may be difficult or impossible to reverse because relay
 copy events. A relay acknowledgement proves that relay accepted the event at that time; it does not
 guarantee permanent retention or network-wide propagation.
 
-These terms cover only the repository's local software. A future hosted service requires operator,
-jurisdiction, acceptable-use, suspension, deletion, liability, and service-change terms reviewed and
-published before launch.
+The hosted bridge is an experimental community service without a service-level commitment. Abuse,
+attempts to impair the service, or unlawful use may result in access restriction. The hosted service
+may change or be suspended. Local source remains licensed under Apache-2.0.

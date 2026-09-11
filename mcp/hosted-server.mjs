@@ -32042,6 +32042,8 @@ document.querySelector('#status').onclick=async()=>{try{const x=await call('/api
 
 // src/hosted.ts
 var MAX_BODY_BYTES = 16e4;
+var RATE_LIMIT_WINDOW_MS = 6e4;
+var RATE_LIMIT_MAX = Number(process.env.HOSTED_RATE_LIMIT_PER_MINUTE ?? 120);
 var SESSION_TTL_MS = Number(process.env.HOSTED_SESSION_TTL_MS ?? 15 * 6e4);
 var PORT = Number(process.env.PORT ?? 8787);
 var HOST = process.env.HOST ?? "0.0.0.0";
@@ -32053,6 +32055,66 @@ var PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL ?? DEFAULT_PUBLIC_BASE_URL).r
 var sessions = /* @__PURE__ */ new Map();
 var pairings = /* @__PURE__ */ new Map();
 var MAX_SESSIONS = Number(process.env.HOSTED_MAX_SESSIONS ?? 100);
+var requestCounts = /* @__PURE__ */ new Map();
+function clientAddress(request) {
+  const forwarded = request.headers["x-forwarded-for"];
+  const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  return value?.split(",", 1)[0]?.trim() || request.socket.remoteAddress || "unknown";
+}
+function rateLimited(request) {
+  const key = clientAddress(request);
+  const now = Date.now();
+  const current = requestCounts.get(key);
+  if (!current || current.resetAt <= now) {
+    requestCounts.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  current.count += 1;
+  return current.count > RATE_LIMIT_MAX;
+}
+function sendHtml(response, body) {
+  response.writeHead(200, {
+    "content-type": "text/html; charset=utf-8",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY"
+  });
+  response.end(body);
+}
+function page(title, body) {
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title} | Nostr Signer</title><style>body{max-width:760px;margin:4rem auto;padding:0 1.25rem;font:16px/1.6 system-ui;color:#171717}h1,h2{line-height:1.2}a{color:#5b35d5}code{background:#f2f2f2;padding:.1rem .3rem}</style><main><h1>${title}</h1>${body}<hr><p><a href="/">Nostr Signer</a> \xB7 <a href="/privacy">Privacy</a> \xB7 <a href="/terms">Terms</a> \xB7 <a href="/support">Support</a></p></main></html>`;
+}
+var publicPages = /* @__PURE__ */ new Map([
+  [
+    "/",
+    page(
+      "Nostr Signer",
+      `<p>An accountless bridge that lets compatible AI clients prepare Nostr events while you approve signatures in your own browser signer.</p><p>Your private key is never requested or stored. Signing and publication remain separate actions.</p><p><strong>MCP endpoint:</strong> <code>${PUBLIC_BASE_URL}/mcp</code></p><p><a href="https://github.com/hudhaifahz/nostr-signer-chatgpt">Source and installation</a></p>`
+    )
+  ],
+  [
+    "/privacy",
+    page(
+      "Privacy notice",
+      `<p><strong>Effective 2026-09-10.</strong> The hosted bridge has no user accounts, advertising, or analytics. It processes public keys, unsigned and signed Nostr events, relay choices and responses, and short-lived pairing/session metadata only when you invoke its tools.</p><p>Sessions are held in process memory and expire after 15 minutes of inactivity or service restart. Operational logs are designed to omit event content, pairing links, tokens, private-message plaintext, and private keys. Hosting and selected Nostr relays process network metadata under their own policies.</p><p>The service never requests or stores a Nostr private key or seed phrase. Public events accepted by relays may be copied and cannot be reliably deleted by this service.</p><p>To clear service-held session data, disconnect or wait for expiry. For privacy questions, use the private security contact linked on the support page.</p>`
+    )
+  ],
+  [
+    "/terms",
+    page(
+      "Terms of use",
+      `<p><strong>Effective 2026-09-10.</strong> Nostr Signer is an experimental community service provided without warranty or service-level commitment.</p><p>You control and are responsible for reviewing events, approving signatures, selecting relays, protecting your signer, and complying with applicable law and third-party rules. The service does not custody keys or offer key recovery.</p><p>Publication can be difficult or impossible to reverse. A relay acknowledgement proves acceptance at that time, not permanent retention or network-wide propagation. Abuse, attempts to impair the service, or unlawful use may result in access restriction. The service may change or be suspended.</p><p>The source is licensed under Apache-2.0; the hosted service is operated subject to these terms.</p>`
+    )
+  ],
+  [
+    "/support",
+    page(
+      "Support",
+      `<p>Report bugs through <a href="https://github.com/hudhaifahz/nostr-signer-chatgpt/issues">GitHub Issues</a>. Include your OS, AI client, browser signer and version, relay URLs, expected behavior, actual behavior, and redacted logs.</p><p>Never include a private key, seed phrase, pairing link, token, or private-message plaintext. Report exploitable security issues privately through <a href="https://github.com/hudhaifahz/nostr-signer-chatgpt/security/advisories/new">GitHub security advisories</a>.</p><p>This community public beta has no guaranteed response time.</p>`
+    )
+  ]
+]);
 function sendJson(response, status, body) {
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
@@ -32135,6 +32197,9 @@ async function handlePairing(request, response, token, path) {
 var server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? "/", PUBLIC_BASE_URL);
+    if (rateLimited(request)) return sendJson(response, 429, { error: "Too many requests." });
+    if (request.method === "GET" && publicPages.has(url.pathname))
+      return sendHtml(response, publicPages.get(url.pathname));
     if (request.method === "GET" && url.pathname === "/health")
       return sendJson(response, 200, { status: "ok" });
     const pairing = url.pathname.match(/^\/pair\/([A-Za-z0-9_-]{43})(\/.*)?$/u);
@@ -32158,6 +32223,9 @@ var server = createServer(async (request, response) => {
 var cleanup = setInterval(
   () => {
     for (const session of new Set(sessions.values())) fresh(session);
+    const now = Date.now();
+    for (const [address, entry] of requestCounts)
+      if (entry.resetAt <= now) requestCounts.delete(address);
   },
   Math.min(SESSION_TTL_MS, 6e4)
 );

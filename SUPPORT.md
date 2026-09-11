@@ -20,6 +20,5 @@ and follow `SECURITY.md`.
 
 ## Current support level
 
-This is a community public-beta candidate. There is no guaranteed response time or service-level
-agreement. The release owner must replace this paragraph with a maintained public support URL and
-contact before marketplace submission.
+This is a community public beta. There is no guaranteed response time or service-level agreement.
+The maintained public support page is `https://signer.frontiercrown.com/support`.

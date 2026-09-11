@@ -8,12 +8,12 @@ owner can supply. Do not submit it until the hosted service gate in `HOSTED_SERV
 - **Name:** Nostr Signer
 - **Short description:** Approve Nostr signatures with your own browser signer.
 - **Category:** Productivity
-- **Publisher:** `[VERIFIED INDIVIDUAL OR BUSINESS]`
-- **Website:** `[PUBLIC HTTPS PRODUCT URL]`
-- **Support:** `[PUBLIC HTTPS SUPPORT URL]`
-- **Privacy:** `[PUBLIC HTTPS PRIVACY URL]`
-- **Terms:** `[PUBLIC HTTPS TERMS URL]`
-- **MCP endpoint:** `[STABLE PUBLIC HTTPS MCP URL]`
+- **Publisher:** Frontier Crown (subject to OpenAI identity verification)
+- **Website:** `https://signer.frontiercrown.com/`
+- **Support:** `https://signer.frontiercrown.com/support`
+- **Privacy:** `https://signer.frontiercrown.com/privacy`
+- **Terms:** `https://signer.frontiercrown.com/terms`
+- **MCP endpoint:** `https://signer.frontiercrown.com/mcp`
 - **Availability:** `[COUNTRIES/REGIONS REVIEWED BY RELEASE OWNER]`
 
 ### Long description
@@ -53,9 +53,8 @@ key.
 ## Submission evidence still required
 
 - Verified developer or business identity with Apps Management write access.
-- Live website, support, privacy, terms, and security URLs matching that identity.
-- Stable public HTTPS MCP endpoint and domain-verification token.
-- Nostr-backed MCP OAuth configuration and a reviewer-safe Nostr test identity.
+- OpenAI-generated domain-verification token at `/.well-known/openai-apps-challenge`.
+- Reviewer-safe browser-signer test identity.
 - Exact CSP, tool scan, and all tool annotation justifications.
 - Production logo, screenshots, accessibility review, and release notes.
 - Recorded actual results for every case above.
