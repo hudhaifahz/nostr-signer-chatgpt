@@ -11,9 +11,13 @@ server, and open the approval page in a Chrome- or Firefox-family profile with a
 extension. It is not a hosted ChatGPT-web service, mobile signer, or unattended signing daemon.
 
 The free local plugin is the right first public release because each user keeps the key and runs the
-bridge. A free hosted edition is possible without holding private keys, but it needs a public HTTPS MCP
-endpoint, OAuth, per-user session isolation, abuse controls, privacy/retention operations, and an
-independent security review. See `LAUNCH_READINESS.md`, `COMPATIBILITY.md`, and `HOSTED_SERVICE.md`.
+bridge. It needs no OAuth or separate account: the browser extension supplies the Nostr public key and
+approves each signature. A free hosted edition is possible without holding private keys, but ChatGPT's
+remote MCP connection needs an OAuth 2.1 compatibility envelope. Its authorization page can use a
+fresh Nostr-signed challenge as the only user login—no separate password—while OAuth binds the ChatGPT
+connection to that verified Nostr identity. A hosted edition also needs per-user session isolation,
+abuse controls, privacy/retention operations, and an independent security review. See
+`LAUNCH_READINESS.md`, `COMPATIBILITY.md`, and `HOSTED_SERVICE.md`.
 
 ## The ordinary-user journey
 
@@ -176,9 +180,10 @@ browser redirect, or `pending` response does not activate a supporter entitlemen
 only separately verified BTCPay settlement can do that.
 
 The v115 owner reports production deployed at commit `84e5b7cbe91bdbbdd0118228e3bd4156e8411b65`.
-The hostname still returned `ENOTFOUND` from this validation environment on 2026-09-10, so the plugin's
-exact contract is mocked and passing but its signed production round-trip is not independently proven
-here. No signed POST or invoice creation was used for validation.
+However, both the local resolver and Cloudflare's public DNS-over-HTTPS service reported the exact API
+hostname as nonexistent on 2026-09-10. The plugin's mocked contract passes, but its Grynvault tools
+cannot work live until that hostname resolves and serves v115. No signed POST or invoice creation was
+used for validation.
 
 See `GRYNVAULT_INTEGRATION.md` for the exact MCP inputs, HTTP bodies, and signature tags.
 

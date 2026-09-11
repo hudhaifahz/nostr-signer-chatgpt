@@ -55,7 +55,7 @@ key.
 - Verified developer or business identity with Apps Management write access.
 - Live website, support, privacy, terms, and security URLs matching that identity.
 - Stable public HTTPS MCP endpoint and domain-verification token.
-- OAuth configuration and reviewer demo account.
+- Nostr-backed MCP OAuth configuration and a reviewer-safe Nostr test identity.
 - Exact CSP, tool scan, and all tool annotation justifications.
 - Production logo, screenshots, accessibility review, and release notes.
 - Recorded actual results for every case above.

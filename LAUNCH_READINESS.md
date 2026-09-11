@@ -8,7 +8,7 @@ Assessment date: 2026-09-10
 |---|---|---|
 | Public GitHub source beta | **Ready after owner fills identity/repository fields and approves publication** | Local implementation, package, tests, license, docs, and launch copy are prepared |
 | Versioned downloadable local plugin | **Ready for a labeled tester beta after clean-package validation** | Build is portable; provider-specific and OpenClaw live evidence remains incomplete |
-| OpenAI public plugin directory | **Not ready** | Requires hosted HTTPS MCP, verified identity/domain, OAuth, public URLs, review credentials, and live review cases |
+| OpenAI public plugin directory | **Not ready** | Requires hosted HTTPS MCP, verified identity/domain, Nostr-backed MCP OAuth, public URLs, review credentials, and live review cases |
 | Free hosted service | **Not ready** | Architecture exists; authentication, tenant isolation, operations, privacy, abuse controls, and review are not implemented |
 | Claim that it "works for all" | **No** | Browser, signer, OS, relay, mobile, and hosted coverage is not universal |
 | Community announcement posts | **Drafted, not published** | Final URLs, release artifact, screenshots, and owner approval are still needed |

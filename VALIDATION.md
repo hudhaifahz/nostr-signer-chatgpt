@@ -51,8 +51,9 @@ The local implementation, security gates, simulated protocol-independent flow, N
 - No event was published to a public relay.
 - ChatGPT Work/web remote HTTPS or Secure MCP Tunnel connectivity was not configured or tested.
 - OpenClaw installation and tool discovery were not available to test in this environment.
-- The production Grynvault owner reports v115 deployed at commit `84e5b7c…`; this environment still
-  received DNS `ENOTFOUND`, so no signed production request was sent and no invoice was created.
+- The production Grynvault owner reports v115 deployed at commit `84e5b7c…`; both the local resolver
+  and Cloudflare DNS-over-HTTPS returned NXDOMAIN for `api.frontiercrown.com`, so the tools cannot work
+  live yet. No signed production request was sent and no invoice was created.
 - Marketplace installation and public distribution were deliberately not performed.
 
 One live local NIP-07 flow was reported by the user on 2026-09-10, but the browser, extension, and

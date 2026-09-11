@@ -1,10 +1,10 @@
 # Grynvault integration contract
 
 Implemented against CrownFrontier v115 at `https://api.frontiercrown.com`. The production owner reports
-the API/dashboard live at exact commit `84e5b7cbe91bdbbdd0118228e3bd4156e8411b65`. An independent GET
-probe from this environment still received DNS `ENOTFOUND` on 2026-09-10, so the contract is passing
-against a mock server but its signed production round-trip is not proven here. Validation sends no
-signed POST and creates no invoice.
+the API/dashboard live at exact commit `84e5b7cbe91bdbbdd0118228e3bd4156e8411b65`. Independent checks
+through both the system resolver and Cloudflare DNS-over-HTTPS returned NXDOMAIN on 2026-09-10. The
+contract passes against a mock server, but the Grynvault tools cannot work live until the exact
+hostname resolves and serves v115. Validation sends no signed POST and creates no invoice.
 
 ## MCP tools
 
