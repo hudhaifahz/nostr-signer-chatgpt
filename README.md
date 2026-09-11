@@ -52,7 +52,7 @@ codex mcp add nostr-signer -- node "$PWD/nostr-signer-chatgpt/mcp/server.mjs"
 ```
 
 Expected SHA-256 for the v0.4.0 bundle:
-`768b7c9c1a500693ce326ff7acd08f0f3174ba5f0117ea6225e8affa517afc06`.
+`75d2c2cc7070ce0a15dbc122c479c312919279ff4160ed9e7e1993c335ce95a5`.
 
 ## The ordinary-user journey
 

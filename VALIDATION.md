@@ -46,7 +46,7 @@ Additional checks passed:
   Neither event was published.
 - release bundle: `nostr-signer-chatgpt-0.4.0.tgz` unpacked cleanly, passed the Agent Plugin validator,
   and started its bundled server on an alternate loopback port. SHA-256:
-  `768b7c9c1a500693ce326ff7acd08f0f3174ba5f0117ea6225e8affa517afc06`.
+  `75d2c2cc7070ce0a15dbc122c479c312919279ff4160ed9e7e1993c335ce95a5`.
 
 ## Release artifact
 
