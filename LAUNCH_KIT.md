@@ -31,7 +31,7 @@ separate, and a post is not called live until a relay acknowledges it. The curre
 desktop beta, not a universal hosted service. I would especially value compatibility reports that name
 the browser, signer version, OS, and exact result.
 
-Try it: `[REPOSITORY OR PRODUCT URL]`
+Try it: `https://github.com/hudhaifahz/nostr-signer-chatgpt`
 
 ## Stacker News
 
@@ -51,7 +51,7 @@ What is real today: the MCP surface, security gates, simulated flow, and local N
 and one live local flow has been reported. What is not proven yet: a versioned Alby/nos2x matrix,
 Windows/Linux coverage, public-relay readback, or a hosted ChatGPT-web service.
 
-Source and setup: `[REPOSITORY URL]`
+Source and setup: `https://github.com/hudhaifahz/nostr-signer-chatgpt`
 
 I would value blunt feedback on the signing UX and threat model. If you test it, please include browser,
 OS, signer/version, whether the extension prompted, signature verification, and relay ACK/readback.
@@ -71,15 +71,16 @@ local stdio MCP server and bundled signer skill. That installation path still ne
 test. I would like OpenClaw builders to report install, tool-discovery, signer, and restart results
 without weakening the no-`nsec`, no-unattended-signing boundary.
 
-Repository: `[REPOSITORY URL]`
-Compatibility matrix: `[COMPATIBILITY URL]`
-Security model: `[SECURITY URL]`
+Repository: `https://github.com/hudhaifahz/nostr-signer-chatgpt`
+Compatibility matrix: `https://github.com/hudhaifahz/nostr-signer-chatgpt/blob/main/COMPATIBILITY.md`
+Security model: `https://github.com/hudhaifahz/nostr-signer-chatgpt/blob/main/SECURITY.md`
 
 ## Nostr announcement
 
 Built a free, open-source local bridge that lets an AI prepare Nostr events while your browser extension
 keeps the key and approves the signature. Exact-event review, separate publish confirmation, no `nsec`
-field. Public-beta candidate; compatibility testers wanted. `[URL]`
+field. Local public beta; compatibility testers wanted.
+https://github.com/hudhaifahz/nostr-signer-chatgpt?utm_source=nostr
 
 ## Launch order
 

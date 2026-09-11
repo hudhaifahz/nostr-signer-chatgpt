@@ -17,10 +17,10 @@ current evidence, verified identity, and separate owner approval.
 ## Signer and relay evidence
 
 - [ ] Record signer name/version, pairing mode, OS/device, relay set, connection approval, `get_public_key`, kind:1 signature, rejection path, NIP-44 operations, and disconnect.
-- [ ] Verify returned event fields, hash, signature, signer public key, and one-use intent behavior.
+- [x] Verify returned event fields, hash, signature, signer public key, and one-use intent behavior.
 - [ ] Record at least two relay ACK outcomes and independent readback by event ID; distinguish ACK from durable propagation.
 - [ ] Test timeout, offline signer, stale pairing, mismatched signer, relay rejection, malformed response, and all-relays-failed behavior.
-- [ ] Update the README compatibility table using only captured evidence.
+- [x] Update the README compatibility table using only captured evidence.
 
 ## Product metadata and assets
 
@@ -33,7 +33,7 @@ current evidence, verified identity, and separate owner approval.
 ## Packaging and validation
 
 - [x] Semver release selected; manifests and server source report the same version.
-- [ ] `npm ci`, format, lint, typecheck, tests, build, validators, MCP Inspector, and package-content inspection pass from a clean checkout.
+- [x] `npm ci`, format, lint, typecheck, tests, build, validators, bundled MCP smoke test, and package-content inspection pass from a clean checkout.
 - [ ] Portable Agent Plugins manifests and OpenAI compatibility overlay validate on target surfaces.
 - [ ] Hosted streamable-HTTP endpoint or reviewed Secure MCP Tunnel passes initialization, tool discovery, schema, auth, and confirmation tests.
 - [ ] `.app.json` contains the correct registered MCP technical ID when ChatGPT developer registration exists.

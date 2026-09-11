@@ -1,0 +1,48 @@
+name: Release assets
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release-assets.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.4.0' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Build release archive and checksum
+        shell: bash
+        run: |
+          test "v$(node -p 'require("./package.json").version')" = "$RELEASE_TAG"
+          mkdir release
+          npm pack --pack-destination release
+          archive=$(find release -maxdepth 1 -name '*.tgz' -print -quit)
+          archive_name=$(basename "$archive")
+          (cd release && sha256sum "$archive_name" > "$archive_name.sha256")
+      - name: Publish immutable assets
+        shell: bash
+        run: |
+          archive=$(find release -maxdepth 1 -name '*.tgz' -print -quit)
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --prerelease --generate-notes --title "Nostr Signer $RELEASE_TAG — local public beta"
+          fi
+          gh release upload "$RELEASE_TAG" "$archive" "$archive.sha256" --clobber

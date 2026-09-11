@@ -40,6 +40,13 @@ Additional checks passed:
   outputs, or work files), installed from the lockfile, then passed the complete release gate
 - manual secret-pattern scan: no embedded nsec-like key, private-key block, or API-key-shaped fixture found outside dependencies/generated output
 - local setup UI: returned HTTP 200 from `127.0.0.1:34846`, with `no-store`, frame denial, referrer protection, and loopback-only listener confirmed
+- live Chrome-family NIP-07 signing: the signer exposed public key `0ab377…9b5bd`, matching the active
+  Primal Web 3.0.124 profile. User-approved kind 22242 and kind 1 events returned through the packaged
+  MCP server; their event IDs recomputed exactly and their Schnorr signatures independently verified.
+  Neither event was published.
+- release bundle: `nostr-signer-chatgpt-0.4.0.tgz` unpacked cleanly, passed the Agent Plugin validator,
+  and started its bundled server on an alternate loopback port. SHA-256:
+  `768b7c9c1a500693ce326ff7acd08f0f3174ba5f0117ea6225e8affa517afc06`.
 
 ## Release artifact
 
@@ -58,7 +65,8 @@ NIP-46.
 
 ## What remains unproven
 
-- No current Alby, nos2x, or other real NIP-07 extension was connected during automated validation.
+- A real NIP-07 extension completed public-key and signing requests, but its product name/version was
+  not captured. Alby- and nos2x-specific claims remain unverified.
 - No real Amber, nsec.app, Clave, or other bunker-compatible signer was paired during this validation.
 - No user event was published as a public note. The NIP-46 live test necessarily exchanged encrypted
   kind:24133 RPC events through public relays.
@@ -67,7 +75,8 @@ NIP-46.
 - The production Grynvault v117 health check and exact in-app browser handoff passed at commit
   `7517fea8…`. The plugin's invoice creation tools were not invoked against production, and no invoice
   was created.
-- Marketplace installation and public distribution were deliberately not performed.
+- The personal Codex marketplace installation is live locally. Public catalog submission and hosted
+  ChatGPT distribution were not performed.
 
 One live local NIP-07 flow was observed on 2026-09-10, but the extension name/version was not captured.
 That observation is not enough for a named provider claim. Noornote and YakiHonne login compatibility

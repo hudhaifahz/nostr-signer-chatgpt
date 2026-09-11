@@ -12,6 +12,8 @@
   approval, and in-memory key erasure.
 - Record live Noornote 1.5.3 and YakiHonne web login interoperability while leaving client-side signing
   and publishing claims unverified.
+- Record post-release Chrome-family NIP-07 public-key and signature verification against the same
+  identity active in Primal Web 3.0.124, plus the downloadable archive checksum. No event was published.
 
 ## 0.3.0 — 2026-09-10
 

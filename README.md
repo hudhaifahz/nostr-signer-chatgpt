@@ -2,7 +2,7 @@
 
 A local-first, open-source signer bridge that lets ChatGPT Work or Codex request Nostr signatures from Alby, nos2x, another NIP-07 browser extension, or an advanced NIP-46 remote signer. The signer keeps the private key. This project never needs, accepts, stores, logs, or transmits an `nsec`.
 
-> Release status: v0.4.0 local public beta. The simulated path, loopback bridge, portable release gate, annotated MCP surface, Grynvault in-app browser handoff, and third-party NIP-46 client bridge are tested. Live Brave NIP-07, Grynvault v117, Noornote v1.5.3, and YakiHonne web sign-ins succeeded on 2026-09-10. The signer extension name/version was not captured, and no third-party-client post was signed or published during those login tests.
+> Release status: v0.4.0 local public beta. The simulated path, loopback bridge, portable release gate, annotated MCP surface, Grynvault in-app browser handoff, and third-party NIP-46 client bridge are tested. Live Chrome-family NIP-07 public-key access and two user-approved signature round-trips succeeded on 2026-09-10; both returned events passed independent hash and signature verification. The same public key was active in Primal Web 3.0.124. Live Brave NIP-07, Grynvault v117, Noornote v1.5.3, and YakiHonne web sign-ins also succeeded. The signer extension name/version was not captured, and no test note was published.
 
 ## Will it work for everyone?
 
@@ -35,6 +35,24 @@ codex mcp add nostr-signer -- node "$PWD/mcp/server.mjs"
 The repository includes portable plugin manifests, but a one-command Grynvault marketplace wrapper is
 not published yet. Inspect the source and release tag before installing; the local signer bridge runs
 with the permissions of the desktop user who starts it.
+
+### Download the prebuilt local bundle
+
+The release page includes a prebuilt archive and SHA-256 checksum. It contains the standalone MCP
+bundle, plugin manifests, signer skill, license notices, source, tests, and documentation. It does not
+contain a private key, signer session, or browser data.
+
+```bash
+curl -LO https://github.com/hudhaifahz/nostr-signer-chatgpt/releases/download/v0.4.0/nostr-signer-chatgpt-0.4.0.tgz
+curl -LO https://github.com/hudhaifahz/nostr-signer-chatgpt/releases/download/v0.4.0/nostr-signer-chatgpt-0.4.0.tgz.sha256
+shasum -a 256 -c nostr-signer-chatgpt-0.4.0.tgz.sha256
+mkdir nostr-signer-chatgpt
+tar -xzf nostr-signer-chatgpt-0.4.0.tgz -C nostr-signer-chatgpt --strip-components=1
+codex mcp add nostr-signer -- node "$PWD/nostr-signer-chatgpt/mcp/server.mjs"
+```
+
+Expected SHA-256 for the v0.4.0 bundle:
+`768b7c9c1a500693ce326ff7acd08f0f3174ba5f0117ea6225e8affa517afc06`.
 
 ## The ordinary-user journey
 
