@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Make local installation the explicit primary high-security path and disclose the hosted trust boundary.
+- Remove NIP-44 encryption/decryption tools from the hosted MCP surface while retaining them locally.
+- Add reproducible build checks, checksums, and GitHub build-provenance attestations.
+- Record an auditable browser extension or signed local companion as the hosted-page replacement path.
 - Add an accountless Streamable HTTP hosted-bridge prototype with short-lived, isolated pairing capabilities.
 - Deploy the hosted alpha at `https://signer.frontiercrown.com/mcp` and verify external tool discovery and isolated pairing pages.
 - Record the owner-approved public announcement and verified three-relay readback evidence.

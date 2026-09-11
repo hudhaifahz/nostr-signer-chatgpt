@@ -23941,7 +23941,7 @@ function failure(error2, logger) {
   logger.error("MCP tool call failed.", error2);
   return { isError: true, content: [{ type: "text", text: publicError(error2).message }] };
 }
-function createMcpServer(service, logger, grynvault = new GrynvaultService(service)) {
+function createMcpServer(service, logger, grynvault = new GrynvaultService(service), options = {}) {
   const server2 = new McpServer(
     { name: "nostr-signer-chatgpt", version: "0.4.0" },
     {
@@ -24101,50 +24101,52 @@ function createMcpServer(service, logger, grynvault = new GrynvaultService(servi
       }
     }
   );
-  server2.registerTool(
-    "nip44_encrypt",
-    {
-      title: "Encrypt with signer",
-      description: "Ask the paired signer to NIP-44 encrypt plaintext for a public key. Never logs plaintext; requires explicit user intent.",
-      inputSchema: {
-        pubkey: external_exports.string().regex(/^[0-9a-f]{64}$/u),
-        plaintext: external_exports.string().min(1).max(65536),
-        confirm_encryption: confirm
+  if (!options.hosted) {
+    server2.registerTool(
+      "nip44_encrypt",
+      {
+        title: "Encrypt with signer",
+        description: "Ask the paired signer to NIP-44 encrypt plaintext for a public key. Never logs plaintext; requires explicit user intent.",
+        inputSchema: {
+          pubkey: external_exports.string().regex(/^[0-9a-f]{64}$/u),
+          plaintext: external_exports.string().min(1).max(65536),
+          confirm_encryption: confirm
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true }
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true }
-    },
-    async ({ pubkey, plaintext, confirm_encryption }) => {
-      try {
-        return result({
-          ciphertext: await service.nip44Encrypt(pubkey, plaintext, confirm_encryption)
-        });
-      } catch (error2) {
-        return failure(error2, logger);
+      async ({ pubkey, plaintext, confirm_encryption }) => {
+        try {
+          return result({
+            ciphertext: await service.nip44Encrypt(pubkey, plaintext, confirm_encryption)
+          });
+        } catch (error2) {
+          return failure(error2, logger);
+        }
       }
-    }
-  );
-  server2.registerTool(
-    "nip44_decrypt",
-    {
-      title: "Decrypt with signer",
-      description: "Ask the paired signer to NIP-44 decrypt ciphertext. Returns sensitive plaintext only after explicit user intent.",
-      inputSchema: {
-        pubkey: external_exports.string().regex(/^[0-9a-f]{64}$/u),
-        ciphertext: external_exports.string().min(1).max(1e5),
-        confirm_decryption: confirm
+    );
+    server2.registerTool(
+      "nip44_decrypt",
+      {
+        title: "Decrypt with signer",
+        description: "Ask the paired signer to NIP-44 decrypt ciphertext. Returns sensitive plaintext only after explicit user intent.",
+        inputSchema: {
+          pubkey: external_exports.string().regex(/^[0-9a-f]{64}$/u),
+          ciphertext: external_exports.string().min(1).max(1e5),
+          confirm_decryption: confirm
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true }
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true }
-    },
-    async ({ pubkey, ciphertext, confirm_decryption }) => {
-      try {
-        return result({
-          plaintext: await service.nip44Decrypt(pubkey, ciphertext, confirm_decryption)
-        });
-      } catch (error2) {
-        return failure(error2, logger);
+      async ({ pubkey, ciphertext, confirm_decryption }) => {
+        try {
+          return result({
+            plaintext: await service.nip44Decrypt(pubkey, ciphertext, confirm_decryption)
+          });
+        } catch (error2) {
+          return failure(error2, logger);
+        }
       }
-    }
-  );
+    );
+  }
   server2.registerTool(
     "query_events",
     {
@@ -32006,7 +32008,7 @@ function signerHtml(token) {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-local' chrome-extension: moz-extension:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'">
 <title>Nostr Signer for ChatGPT</title><style>
 :root{color-scheme:light dark;font:16px system-ui,sans-serif}body{max-width:800px;margin:40px auto;padding:0 20px;background:#101417;color:#f4f7f5}main{background:#182026;border:1px solid #334149;border-radius:18px;padding:28px}h1{margin-top:0}.safe{color:#7ee2ad;font-weight:700}.warn{color:#ffd479}.card{padding:20px;border:1px solid #42535d;border-radius:14px;background:#12191d;margin:20px 0}.recommended{border-color:#7a63ff;box-shadow:0 0 0 1px #7a63ff}.badge{display:inline-block;background:#6d46ff;border-radius:999px;padding:4px 9px;font-size:.78rem;font-weight:800}label{display:block;margin:18px 0 7px}input,textarea,button{font:inherit;border-radius:9px;border:1px solid #52636d;padding:11px;background:#0f1519;color:#fff}input,textarea{box-sizing:border-box;width:100%}button{cursor:pointer;background:#6d46ff;border-color:#8e73ff;font-weight:700}button.secondary{background:#29343b}button.reject{background:#512b33;border-color:#8c4c59}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1215;padding:14px;border-radius:9px;min-height:44px}.row{display:flex;gap:10px;flex-wrap:wrap}.row button{flex:1}.muted{color:#aab7bd;font-size:.92rem}details{margin-top:24px}summary{cursor:pointer;font-weight:700}#approval[hidden]{display:none}</style></head>
-<body><main><h1>Nostr Signer for ChatGPT</h1><p class="safe">Your private key stays in your signer.</p>
+<body><main><h1>Nostr Signer for ChatGPT</h1><p class="safe">Your private key stays in your signer. Approve only if your signer displays the complete event and it matches this page.</p>
 <section class="card recommended"><span class="badge">Recommended</span><h2>Use Alby, nos2x, or another NIP-07 extension</h2><p>Open this local page in the Chrome or Firefox profile where your signer extension is installed. Connect once, keep this tab open, and approve each request here and in your extension.</p><div class="row"><button id="extension">Connect browser extension</button><button class="secondary" id="copyUrl">Copy setup URL</button></div><pre id="extensionStatus">Extension not connected.</pre>
 <div id="approval" hidden><h3>Approval waiting</h3><p class="warn">Review the exact request below. Continue only if it matches what you asked to do; your extension's own approval policy is the final protection.</p><pre id="request"></pre><div class="row"><button id="approve">Continue in extension</button><button class="reject" id="reject">Reject request</button></div></div></section>
 <section class="card"><span class="badge">Experimental</span><h2>Sign in to Noornote, YakiHonne, and other NIP-46 apps</h2><p>Creates one short-lived remote-signer link. Paste it into the app's <strong>Remote signer</strong> or <strong>Bunker</strong> login. Every connection and sensitive request still waits for your approval here.</p><label for="clientRelays">Connection relays</label><input id="clientRelays" value="wss://nos.lol,wss://nostr.mom,wss://relay.primal.net" spellcheck="false"><div class="row"><button id="startClient">Create app sign-in link</button><button class="secondary" id="copyClient" disabled>Copy private link</button><button class="reject" id="stopClient">Stop</button></div><p class="warn">Treat this link like a temporary password. Do not post or message it.</p><pre class="secret" id="clientLink">No active app sign-in link.</pre><pre id="clientStatus">Bridge is idle.</pre>
@@ -32098,7 +32100,7 @@ var publicPages = /* @__PURE__ */ new Map([
     "/privacy",
     page(
       "Privacy notice",
-      `<p><strong>Effective 2026-09-10.</strong> The hosted bridge has no user accounts, advertising, or analytics. It processes public keys, unsigned and signed Nostr events, relay choices and responses, and short-lived pairing/session metadata only when you invoke its tools.</p><p>Sessions are held in process memory and expire after 15 minutes of inactivity or service restart. Operational logs are designed to omit event content, pairing links, tokens, private-message plaintext, and private keys. Hosting and selected Nostr relays process network metadata under their own policies.</p><p>The service never requests or stores a Nostr private key or seed phrase. Public events accepted by relays may be copied and cannot be reliably deleted by this service.</p><p>To clear service-held session data, disconnect or wait for expiry. For privacy questions, use the private security contact linked on the support page.</p>`
+      `<p><strong>Effective 2026-09-11.</strong> The hosted bridge has no user accounts, advertising, or analytics. Event contents, public keys, signatures, ciphertext, relay selections and responses, and short-lived pairing/session metadata transit Frontier Crown's Railway-hosted service when you invoke its tools.</p><p>Hosted NIP-44 encryption and decryption are disabled so message plaintext does not transit this service. Sessions are held in process memory and expire after 15 minutes of inactivity or service restart. Operational logs are designed to omit event content, pairing links, tokens, private-message plaintext, and private keys. Railway and selected Nostr relays process network metadata under their own policies.</p><p>The service never requests or stores a Nostr private key or seed phrase. Public events accepted by relays may be copied and cannot be reliably deleted by this service. Use the local edition when event content should not transit the hosted operator.</p><p>To clear service-held session data, disconnect or wait for expiry. For privacy questions, use the private security contact linked on the support page.</p>`
     )
   ],
   [
@@ -32162,9 +32164,9 @@ async function createSession() {
   runtime.service.setSetupUrl(`${PUBLIC_BASE_URL}/pair/${token}`);
   pairings.set(token, session);
   transport.onclose = () => void closeSession(session);
-  await createMcpServer(runtime.service, runtime.logger, runtime.grynvault).connect(
-    transport
-  );
+  await createMcpServer(runtime.service, runtime.logger, runtime.grynvault, {
+    hosted: true
+  }).connect(transport);
   return session;
 }
 async function handlePairing(request, response, token, path) {
@@ -32212,6 +32214,13 @@ var server = createServer(async (request, response) => {
       return sendHtml(response, publicPages.get(url.pathname));
     if (request.method === "GET" && url.pathname === "/health")
       return sendJson(response, 200, { status: "ok" });
+    if (request.method === "GET" && url.pathname === "/provenance")
+      return sendJson(response, 200, {
+        sourceRepository: "https://github.com/hudhaifahz/nostr-signer-chatgpt",
+        sourceRevision: process.env.SOURCE_REVISION ?? "unavailable",
+        hostedBundleSha256: process.env.HOSTED_BUNDLE_SHA256 ?? "unavailable",
+        buildInstructions: "npm ci && npm run check && npm run build:hashes"
+      });
     const pairing = url.pathname.match(/^\/pair\/([A-Za-z0-9_-]{43})(\/.*)?$/u);
     if (pairing?.[1]) return await handlePairing(request, response, pairing[1], pairing[2] ?? "");
     if (url.pathname !== "/mcp") return sendJson(response, 404, { error: "Not found." });

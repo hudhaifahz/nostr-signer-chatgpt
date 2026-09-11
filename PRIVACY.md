@@ -43,6 +43,12 @@ Nostr relays configured by the user or installation. Grynvault tools contact the
 `https://app.frontiercrown.com` origin after the user invokes them. The software
 does not send data to a project-owned analytics service.
 
+For the hosted edition, event contents, public keys, signatures, ciphertext, relay selections, and
+relay responses transit the Frontier Crown service hosted on Railway. Hosted NIP-44 encryption and
+decryption tools are disabled so encryption plaintext and decrypted plaintext do not transit that
+service. Use the local edition when this metadata and event content should not pass through the hosted
+operator.
+
 When third-party-app mode is active, the selected relays also carry encrypted NIP-46 requests and
 responses. Those relays cannot read the RPC payload but can observe timing, IP addresses, ephemeral
 communication public keys, and event routing tags.

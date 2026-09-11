@@ -2,15 +2,22 @@
 
 A local-first, open-source signer bridge that lets ChatGPT Work or Codex request Nostr signatures from Alby, nos2x, another NIP-07 browser extension, or an advanced NIP-46 remote signer. The signer keeps the private key. This project never needs, accepts, stores, logs, or transmits an `nsec`.
 
-> Release status: v0.4.0 local public beta plus a live accountless hosted alpha. Live Chrome-family NIP-07 public-key access and signing succeeded on 2026-09-10. A user-approved announcement was accepted and independently read back with a valid signature from `nos.lol`, `nostr.mom`, and `relay.primal.net`. The hosted MCP endpoint at `https://signer.frontiercrown.com/mcp` completed external initialization, 19-tool discovery, and two-session pairing-page isolation tests. It has not yet been submitted to the OpenAI directory.
+> **Use the local installation for the strongest security.** It keeps the approval page and session
+> coordinator on your computer. The hosted bridge is a convenience beta: event contents, public keys,
+> signatures, ciphertext, and relay responses transit infrastructure operated by Frontier Crown on
+> Railway. Hosted NIP-44 encryption and decryption are disabled because plaintext could otherwise
+> transit that infrastructure.
+
+> Release status: v0.4.0 local public beta plus a live accountless hosted alpha. Live Chrome-family NIP-07 public-key access and signing succeeded on 2026-09-10. A user-approved announcement was accepted and independently read back with a valid signature from `nos.lol`, `nostr.mom`, and `relay.primal.net`. The hosted MCP endpoint at `https://signer.frontiercrown.com/mcp` completed external initialization and two-session pairing-page isolation tests. Its reduced hosted surface exposes 17 tools and omits NIP-44 encrypt/decrypt. It is active in the official MCP Registry but has not been approved by the OpenAI directory.
 
 ## Will it work for everyone?
 
 Not universally. The current release is for desktop users who can run Node.js 22+, connect a local stdio MCP
 server, and open the approval page in a Chrome- or Firefox-family profile with a compatible NIP-07
-extension. It is not a hosted ChatGPT-web service, mobile signer, or unattended signing daemon.
+extension. It is not a mobile signer or unattended signing daemon. Prefer a signer that displays the
+complete event—including kind, content, tags, and timestamp—before every approval.
 
-The free local plugin is the current public release because each user keeps the key and runs the
+The free local plugin is the primary, recommended public release because each user keeps the key and runs the
 bridge. It needs no OAuth or separate account: the browser extension supplies the Nostr public key and
 approves each signature. The hosted prototype also has no OAuth or user accounts: it binds each AI MCP
 session to an extension-enabled browser with a short-lived, high-entropy capability URL. It still needs per-session isolation,
@@ -39,6 +46,10 @@ with the permissions of the desktop user who starts it.
 The release page includes a prebuilt archive and SHA-256 checksum. It contains the standalone MCP
 bundle, plugin manifests, signer skill, license notices, source, tests, and documentation. It does not
 contain a private key, signer session, or browser data.
+
+Build hashes and the live deployment's claimed source revision are documented in `PROVENANCE.md` and
+published at `https://signer.frontiercrown.com/provenance`. Tagged archives receive GitHub build
+provenance attestations.
 
 ```bash
 curl -LO https://github.com/hudhaifahz/nostr-signer-chatgpt/releases/download/v0.4.0/nostr-signer-chatgpt-0.4.0.tgz
@@ -216,7 +227,7 @@ Relevant OpenAI guidance: [plugin packaging](https://developers.openai.com/plugi
 | `prepare_event` | Bind any exact valid event template | No signing or network write; show every field |
 | `sign_event` | Sign exactly one prepared intent | Explicit tool confirmation and signer approval |
 | `publish_event` | Publish the verified stored event | Separate explicit confirmation |
-| `nip44_encrypt` / `nip44_decrypt` | Ask signer for NIP-44 operation | Explicit confirmation; no plaintext logging |
+| `nip44_encrypt` / `nip44_decrypt` | Local edition only: ask signer for NIP-44 operation | Disabled on hosted service; local use requires explicit confirmation |
 | `query_events` | Read verified public kind 0/1 events | Bounded filters and result count |
 | `disconnect_signer` | Forget session and intents | Explicit confirmation |
 | `get_grynvault_account_dashboard` | Sign and retrieve the connected pubkey's read-only Grynvault dashboard | Explicit signed-access confirmation; creates no invoice |
@@ -265,7 +276,10 @@ See `GRYNVAULT_INTEGRATION.md` for the exact MCP inputs, HTTP bodies, and signat
 
 NIP-07 defines `window.nostr.getPublicKey()`, `window.nostr.signEvent()`, and optional encryption methods for browser pages. The plugin does not inject or impersonate an extension. Its loopback page detects the API supplied by an installed signer, sends one reviewed request to it, and returns the result to the same verification pipeline used by NIP-46. The [NIP-07 specification](https://nips.nostr.com/7) defines the standard interface.
 
-The extension decides whether to prompt, approve, or reject. Multiple installed signer extensions can contend for `window.nostr`; use a dedicated browser profile if selection is ambiguous.
+The extension decides whether to prompt, approve, or reject. Use a signer that displays the complete
+event before every approval; do not approve from a generic “sign” prompt when the event cannot be
+inspected. Multiple installed signer extensions can contend for `window.nostr`; use a dedicated browser
+profile if selection is ambiguous.
 
 ## Why there is no private-key fallback
 
@@ -316,7 +330,9 @@ See `VALIDATION.md` for the exact local evidence and its limits.
   remain unverified on the named clients.
 - The v117 Grynvault browser handoff is live and proven. Supporter/NIP-05 creation was not called during
   the handoff test, so no invoice or payment was created.
-- Future work: real compatibility matrix, native-browser handoff helper, the separately gated hosted architecture in `HOSTED_SERVICE.md`, a verified OpenClaw install, and an optional hardware-backed local signer adapter that still never exports a private key.
+- Future work: replace the mutable hosted approval webpage with an auditable browser extension or signed
+  local companion so the operator cannot silently change approval-page code; add a real compatibility
+  matrix, verified OpenClaw install, and optional hardware-backed local signer adapter that never exports a key.
 
 ## License
 

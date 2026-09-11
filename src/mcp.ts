@@ -26,6 +26,7 @@ export function createMcpServer(
   service: NostrSignerService,
   logger: SafeLogger,
   grynvault = new GrynvaultService(service),
+  options: { hosted?: boolean } = {},
 ): McpServer {
   const server = new McpServer(
     { name: "nostr-signer-chatgpt", version: "0.4.0" },
@@ -206,53 +207,55 @@ export function createMcpServer(
     },
   );
 
-  server.registerTool(
-    "nip44_encrypt",
-    {
-      title: "Encrypt with signer",
-      description:
-        "Ask the paired signer to NIP-44 encrypt plaintext for a public key. Never logs plaintext; requires explicit user intent.",
-      inputSchema: {
-        pubkey: z.string().regex(/^[0-9a-f]{64}$/u),
-        plaintext: z.string().min(1).max(65_536),
-        confirm_encryption: confirm,
+  if (!options.hosted) {
+    server.registerTool(
+      "nip44_encrypt",
+      {
+        title: "Encrypt with signer",
+        description:
+          "Ask the paired signer to NIP-44 encrypt plaintext for a public key. Never logs plaintext; requires explicit user intent.",
+        inputSchema: {
+          pubkey: z.string().regex(/^[0-9a-f]{64}$/u),
+          plaintext: z.string().min(1).max(65_536),
+          confirm_encryption: confirm,
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    },
-    async ({ pubkey, plaintext, confirm_encryption }) => {
-      try {
-        return result({
-          ciphertext: await service.nip44Encrypt(pubkey, plaintext, confirm_encryption),
-        });
-      } catch (error) {
-        return failure(error, logger);
-      }
-    },
-  );
+      async ({ pubkey, plaintext, confirm_encryption }) => {
+        try {
+          return result({
+            ciphertext: await service.nip44Encrypt(pubkey, plaintext, confirm_encryption),
+          });
+        } catch (error) {
+          return failure(error, logger);
+        }
+      },
+    );
 
-  server.registerTool(
-    "nip44_decrypt",
-    {
-      title: "Decrypt with signer",
-      description:
-        "Ask the paired signer to NIP-44 decrypt ciphertext. Returns sensitive plaintext only after explicit user intent.",
-      inputSchema: {
-        pubkey: z.string().regex(/^[0-9a-f]{64}$/u),
-        ciphertext: z.string().min(1).max(100_000),
-        confirm_decryption: confirm,
+    server.registerTool(
+      "nip44_decrypt",
+      {
+        title: "Decrypt with signer",
+        description:
+          "Ask the paired signer to NIP-44 decrypt ciphertext. Returns sensitive plaintext only after explicit user intent.",
+        inputSchema: {
+          pubkey: z.string().regex(/^[0-9a-f]{64}$/u),
+          ciphertext: z.string().min(1).max(100_000),
+          confirm_decryption: confirm,
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    },
-    async ({ pubkey, ciphertext, confirm_decryption }) => {
-      try {
-        return result({
-          plaintext: await service.nip44Decrypt(pubkey, ciphertext, confirm_decryption),
-        });
-      } catch (error) {
-        return failure(error, logger);
-      }
-    },
-  );
+      async ({ pubkey, ciphertext, confirm_decryption }) => {
+        try {
+          return result({
+            plaintext: await service.nip44Decrypt(pubkey, ciphertext, confirm_decryption),
+          });
+        } catch (error) {
+          return failure(error, logger);
+        }
+      },
+    );
+  }
 
   server.registerTool(
     "query_events",

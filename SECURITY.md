@@ -21,6 +21,11 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 
 ## Trust boundaries
 
+The local edition is the recommended high-security path. The hosted edition keeps private keys inside
+the signer but is not trustless: the operator and Railway can observe data transiting the service, and
+the operator controls the approval-page JavaScript. Hosted NIP-44 encrypt/decrypt tools are therefore
+disabled. Users should approve only in signers that display the complete event.
+
 1. **User ↔ ChatGPT/Codex:** the model can propose tool arguments but is not a trusted authority for user intent or event integrity.
 2. **ChatGPT/Codex ↔ local MCP process:** every input is untrusted and is validated server-side. Tool confirmation booleans are an application gate, not a substitute for clear user intent.
 3. **Local browser ↔ setup page:** the page binds only to loopback, uses a per-process anti-CSRF token, accepts bounded JSON, sends no data to third-party origins, and persists nothing. The NIP-07 bridge works only in a browser profile where a signer injects `window.nostr`.

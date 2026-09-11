@@ -31,7 +31,7 @@ async function setupUrl(client: Client): Promise<string> {
 test("hosted bridge creates isolated accountless capability sessions", async () => {
   const port = 18_800 + Math.floor(Math.random() * 500);
   const base = `http://127.0.0.1:${port}`;
-  processUnderTest = spawn(process.execPath, ["mcp/hosted-server.mjs"], {
+  processUnderTest = spawn(process.execPath, ["--import", "tsx", "src/hosted.ts"], {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -47,6 +47,10 @@ test("hosted bridge creates isolated accountless capability sessions", async () 
   const second = new Client({ name: "hosted-test-b", version: "1.0.0" });
   await first.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)) as Transport);
   await second.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)) as Transport);
+  const hostedTools = (await first.listTools()).tools.map((tool) => tool.name);
+  expect(hostedTools).not.toContain("nip44_encrypt");
+  expect(hostedTools).not.toContain("nip44_decrypt");
+  expect(hostedTools).toHaveLength(17);
   const firstUrl = await setupUrl(first);
   const secondUrl = await setupUrl(second);
 

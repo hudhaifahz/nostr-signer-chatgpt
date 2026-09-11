@@ -4,13 +4,11 @@ on:
   push:
     tags:
       - "v*"
-    branches:
-      - main
-    paths:
-      - ".github/workflows/release-assets.yml"
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   bundle:
@@ -29,6 +27,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm run build:hashes
       - name: Build release archive and checksum
         shell: bash
         run: |
@@ -46,3 +45,7 @@ jobs:
             gh release create "$RELEASE_TAG" --prerelease --generate-notes --title "Nostr Signer $RELEASE_TAG — local public beta"
           fi
           gh release upload "$RELEASE_TAG" "$archive" "$archive.sha256" --clobber
+      - name: Attest release bundle provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release/*.tgz

@@ -15,6 +15,11 @@ The recommended public offering has two editions:
 "Free" means no user subscription is planned for the beta. It does not mean hosting has no operator
 cost or that unlimited usage can be promised.
 
+The local edition is the primary high-security option. The hosted edition is not trustless: event
+contents, public keys, signatures, ciphertext, and relay responses pass through the Railway-hosted
+service. Railway terminates the service connection, and users trust the operator-controlled page not to
+request a misleading signature. Choose a signer that shows the complete event before every approval.
+
 ## Hosted user journey
 
 1. The AI host opens an unauthenticated Streamable HTTP MCP session.
@@ -107,6 +112,12 @@ captured operational evidence.
 Publish HS-013 materials, complete HS-014 and HS-015, verify the publisher and domain, and submit the
 remote MCP server through the OpenAI plugin portal. Gate H3 passes only after approval and a clean
 production smoke test using a non-production Nostr identity.
+
+### H4 — Auditable local approval surface
+
+Replace the mutable hosted approval webpage with a separately installed, auditable browser extension
+or signed local companion. Pin releases to published source and build hashes, require complete-event
+display before invoking the signer, and keep the remote service outside the browser-to-signer boundary.
 
 ## Hosting choice
 

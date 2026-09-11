@@ -80,7 +80,7 @@ const publicPages = new Map<string, string>([
     "/privacy",
     page(
       "Privacy notice",
-      `<p><strong>Effective 2026-09-10.</strong> The hosted bridge has no user accounts, advertising, or analytics. It processes public keys, unsigned and signed Nostr events, relay choices and responses, and short-lived pairing/session metadata only when you invoke its tools.</p><p>Sessions are held in process memory and expire after 15 minutes of inactivity or service restart. Operational logs are designed to omit event content, pairing links, tokens, private-message plaintext, and private keys. Hosting and selected Nostr relays process network metadata under their own policies.</p><p>The service never requests or stores a Nostr private key or seed phrase. Public events accepted by relays may be copied and cannot be reliably deleted by this service.</p><p>To clear service-held session data, disconnect or wait for expiry. For privacy questions, use the private security contact linked on the support page.</p>`,
+      `<p><strong>Effective 2026-09-11.</strong> The hosted bridge has no user accounts, advertising, or analytics. Event contents, public keys, signatures, ciphertext, relay selections and responses, and short-lived pairing/session metadata transit Frontier Crown's Railway-hosted service when you invoke its tools.</p><p>Hosted NIP-44 encryption and decryption are disabled so message plaintext does not transit this service. Sessions are held in process memory and expire after 15 minutes of inactivity or service restart. Operational logs are designed to omit event content, pairing links, tokens, private-message plaintext, and private keys. Railway and selected Nostr relays process network metadata under their own policies.</p><p>The service never requests or stores a Nostr private key or seed phrase. Public events accepted by relays may be copied and cannot be reliably deleted by this service. Use the local edition when event content should not transit the hosted operator.</p><p>To clear service-held session data, disconnect or wait for expiry. For privacy questions, use the private security contact linked on the support page.</p>`,
     ),
   ],
   [
@@ -149,9 +149,9 @@ async function createSession(): Promise<HostedSession> {
   runtime.service.setSetupUrl(`${PUBLIC_BASE_URL}/pair/${token}`);
   pairings.set(token, session);
   transport.onclose = () => void closeSession(session);
-  await createMcpServer(runtime.service, runtime.logger, runtime.grynvault).connect(
-    transport as Transport,
-  );
+  await createMcpServer(runtime.service, runtime.logger, runtime.grynvault, {
+    hosted: true,
+  }).connect(transport as Transport);
   return session;
 }
 
@@ -207,6 +207,13 @@ const server = createServer(async (request, response) => {
       return sendHtml(response, publicPages.get(url.pathname) as string);
     if (request.method === "GET" && url.pathname === "/health")
       return sendJson(response, 200, { status: "ok" });
+    if (request.method === "GET" && url.pathname === "/provenance")
+      return sendJson(response, 200, {
+        sourceRepository: "https://github.com/hudhaifahz/nostr-signer-chatgpt",
+        sourceRevision: process.env.SOURCE_REVISION ?? "unavailable",
+        hostedBundleSha256: process.env.HOSTED_BUNDLE_SHA256 ?? "unavailable",
+        buildInstructions: "npm ci && npm run check && npm run build:hashes",
+      });
     const pairing = url.pathname.match(/^\/pair\/([A-Za-z0-9_-]{43})(\/.*)?$/u);
     if (pairing?.[1]) return await handlePairing(request, response, pairing[1], pairing[2] ?? "");
     if (url.pathname !== "/mcp") return sendJson(response, 404, { error: "Not found." });

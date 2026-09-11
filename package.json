@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=mcp/server.mjs && esbuild src/hosted.ts --bundle --platform=node --format=esm --target=node22 --outfile=mcp/hosted-server.mjs",
+    "build:hashes": "shasum -a 256 mcp/server.mjs mcp/hosted-server.mjs package-lock.json > SHA256SUMS",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run validate:release && npm run build && npm run smoke:bundle",
     "demo": "tsx src/demo.ts",
     "format": "biome format --write .",
