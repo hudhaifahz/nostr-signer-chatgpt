@@ -25,7 +25,7 @@ Clone the public source, verify the release tag, build it locally, and register 
 Then start a new Codex task so its tools are loaded:
 
 ```bash
-git clone --branch v0.4.0 https://github.com/Grynvault/nostr-signer-chatgpt.git
+git clone --branch v0.4.0 https://github.com/aya-skaur/nostr-signer-chatgpt.git
 cd nostr-signer-chatgpt
 npm ci
 npm run check
