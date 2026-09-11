@@ -11,6 +11,7 @@ import { signerHtml } from "./ui.js";
 const MAX_BODY_BYTES = 160_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = Number(process.env.HOSTED_RATE_LIMIT_PER_MINUTE ?? 120);
+const MCP_REGISTRY_AUTH = "v=MCPv1; k=ed25519; p=O+eBQnTFnlUtT3TFb5c8K/nY/s29atAHsT6EaEkSFvM=";
 const SESSION_TTL_MS = Number(process.env.HOSTED_SESSION_TTL_MS ?? 15 * 60_000);
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -193,6 +194,15 @@ const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? "/", PUBLIC_BASE_URL);
     if (rateLimited(request)) return sendJson(response, 429, { error: "Too many requests." });
+    if (request.method === "GET" && url.pathname === "/.well-known/mcp-registry-auth") {
+      response.writeHead(200, {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "public, max-age=300",
+        "x-content-type-options": "nosniff",
+      });
+      response.end(MCP_REGISTRY_AUTH);
+      return;
+    }
     if (request.method === "GET" && publicPages.has(url.pathname))
       return sendHtml(response, publicPages.get(url.pathname) as string);
     if (request.method === "GET" && url.pathname === "/health")

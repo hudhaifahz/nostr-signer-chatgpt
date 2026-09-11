@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.frontiercrown.signer/nostr-signer",
+  "title": "Nostr Signer",
+  "description": "Approve Nostr signatures with your own browser signer without exposing a private key.",
+  "repository": {
+    "url": "https://github.com/hudhaifahz/nostr-signer-chatgpt",
+    "source": "github"
+  },
+  "version": "0.4.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://signer.frontiercrown.com/mcp"
+    }
+  ]
+}
