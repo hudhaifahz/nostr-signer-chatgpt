@@ -1,7 +1,7 @@
 # Free hosted service design
 
-This is the implementation contract for a future hosted edition. It is not a description of the
-current local plugin.
+This is the implementation contract for the hosted edition. An accountless Node.js prototype now
+exists in `mcp/hosted-server.mjs`; it is not yet a production deployment.
 
 ## Product boundary
 
@@ -10,21 +10,19 @@ The recommended public offering has two editions:
 | Edition | Who runs the bridge | Key custody | Current state |
 |---|---|---|---|
 | Free local plugin | Each user | Browser extension or NIP-46 signer | Public-beta candidate |
-| Free hosted bridge | Project operator | Browser extension only; service never receives an `nsec` | Designed, not implemented |
+| Free hosted bridge | Project operator | Browser extension only; service never receives an `nsec` | Accountless prototype implemented; not deployed |
 
 "Free" means no user subscription is planned for the beta. It does not mean hosting has no operator
 cost or that unlimited usage can be promised.
 
 ## Hosted user journey
 
-1. The AI host begins the standard MCP OAuth flow.
-2. The authorization page asks the user's NIP-07 extension to sign a short-lived Nostr login
-   challenge. There is no separate username, password, or custodial Nostr account.
-3. The authorization server verifies that signature and issues a scoped OAuth token binding the AI
-   connection to that Nostr public key.
-4. The plugin returns a short-lived signer-page link or QR code.
+1. The AI host opens an unauthenticated Streamable HTTP MCP session.
+2. The service creates a cryptographically random, short-lived capability for that session.
+3. The plugin returns a signer-page link containing that capability. There is no account, OAuth,
+   username, password, or custodial Nostr identity.
 5. The user opens that HTTPS page in a browser profile containing the same NIP-07 identity.
-6. The page connects to the same authenticated, tenant-isolated session.
+6. The page connects only to the isolated session named by the capability.
 7. The AI prepares an exact event and displays it for review.
 8. The signer page displays the same event and requires a click before invoking the extension.
 9. The extension approves or rejects and returns only the public key or signed event.
@@ -38,8 +36,8 @@ this product because the server would need recoverable signing authority at runt
 
 ```mermaid
 flowchart LR
-  A[AI host] -->|OAuth access token + HTTPS MCP| M[Remote MCP gateway]
-  B[Extension-enabled browser] -->|Nostr-signed login + short-lived session| W[Signer web page]
+  A[AI host] -->|HTTPS MCP session| M[Remote MCP gateway]
+  B[Extension-enabled browser] -->|short-lived capability| W[Signer web page]
   W -->|WebSocket/SSE| Q[Ephemeral session coordinator]
   M --> Q
   W -->|NIP-07| E[User's signer extension]
@@ -53,7 +51,7 @@ flowchart LR
 | ID | Requirement | Launch evidence |
 |---|---|---|
 | HS-001 | Stable public HTTPS streamable-MCP endpoint | External initialization and tool-discovery capture |
-| HS-002 | MCP OAuth 2.1 authorization-code flow with PKCE; its authorization page authenticates the user with a fresh Nostr signature | Positive, replay, wrong-pubkey, expired-token, wrong-scope, and logout tests |
+| HS-002 | Accountless, high-entropy capability sessions; no OAuth or user account | Positive, unknown-capability, replay, expiry, and disconnect tests |
 | HS-003 | One user and one signer page per isolated session | Cross-tenant access test |
 | HS-004 | Short-lived, single-use browser pairing codes | Replay and expiry tests |
 | HS-005 | No endpoint, schema, log, metric, or backup accepts an `nsec` | Encoded-secret red-team suite and log review |
@@ -80,16 +78,16 @@ flowchart LR
 - No mobile compatibility claim.
 - No promise of permanent free or unlimited service.
 
-## Identity model
+## Accountless session model
 
-OAuth is the compatibility envelope between a remote MCP client and the hosted service; it is not a
-second user identity. The only end-user login should be a fresh, domain-bound Nostr challenge approved
-by the user's signer. The resulting access token identifies the verified Nostr public key and carries
-short-lived scopes such as account read, event preparation, or invoice creation. It must never contain
-or grant direct access to a private key.
+The hosted beta has no user identity or account layer. A random MCP session ID isolates the AI
+connection and a separate 256-bit URL capability pairs the extension-enabled browser to that session.
+Both expire after inactivity. Possession of the pairing URL grants access to that one temporary
+session, so the URL must be treated like a short-lived password and must never appear in logs,
+analytics, referrers, or public messages.
 
-The local stdio plugin does not need this envelope because the MCP process, approval page, and AI host
-run on the same machine. It uses the connected signer public key and per-operation signatures directly.
+The signer public key becomes known only after the user connects the extension. Event signing still
+requires exact-event review and extension approval; publication remains a separate action.
 
 ## Delivery stages and gates
 
@@ -112,8 +110,8 @@ production smoke test using a non-production Nostr identity.
 
 ## Hosting choice
 
-A Cloudflare Worker plus a per-session Durable Object is a plausible coordinator, but it is not yet a
-selected or deployed architecture. The decision must be based on current WebSocket/session behavior,
-data residency, abuse controls, observability, deletion semantics, and measured beta cost. Whichever
-platform is selected, its secret manager may hold the authorization server's own signing and
-deployment credentials—not users' Nostr private keys.
+The implemented prototype is a portable Node.js Streamable HTTP service with in-memory sessions. Run
+`npm run build` and `npm run start:hosted`, set `PUBLIC_BASE_URL` to the external HTTPS origin, and put
+the process behind a TLS-terminating reverse proxy. Production deployment still requires shared rate
+limiting, bounded capacity, monitoring, and a multi-instance session strategy or explicit
+single-instance routing. No deployment secret may contain a user's Nostr private key.

@@ -2,7 +2,7 @@
 
 A local-first, open-source signer bridge that lets ChatGPT Work or Codex request Nostr signatures from Alby, nos2x, another NIP-07 browser extension, or an advanced NIP-46 remote signer. The signer keeps the private key. This project never needs, accepts, stores, logs, or transmits an `nsec`.
 
-> Release status: v0.4.0 local public beta. The simulated path, loopback bridge, portable release gate, annotated MCP surface, Grynvault in-app browser handoff, and third-party NIP-46 client bridge are tested. Live Chrome-family NIP-07 public-key access and two user-approved signature round-trips succeeded on 2026-09-10; both returned events passed independent hash and signature verification. The same public key was active in Primal Web 3.0.124. Live Brave NIP-07, Grynvault v117, Noornote v1.5.3, and YakiHonne web sign-ins also succeeded. The signer extension name/version was not captured, and no test note was published.
+> Release status: v0.4.0 local public beta. Live Chrome-family NIP-07 public-key access and signing succeeded on 2026-09-10. A user-approved announcement was accepted and independently read back with a valid signature from `nos.lol`, `nostr.mom`, and `relay.primal.net`. An accountless hosted Streamable HTTP prototype is implemented and locally isolation-tested, but is not yet publicly deployed or submitted to the OpenAI directory.
 
 ## Will it work for everyone?
 
@@ -10,12 +10,10 @@ Not universally. The current release is for desktop users who can run Node.js 22
 server, and open the approval page in a Chrome- or Firefox-family profile with a compatible NIP-07
 extension. It is not a hosted ChatGPT-web service, mobile signer, or unattended signing daemon.
 
-The free local plugin is the right first public release because each user keeps the key and runs the
+The free local plugin is the current public release because each user keeps the key and runs the
 bridge. It needs no OAuth or separate account: the browser extension supplies the Nostr public key and
-approves each signature. A free hosted edition is possible without holding private keys, but ChatGPT's
-remote MCP connection needs an OAuth 2.1 compatibility envelope. Its authorization page can use a
-fresh Nostr-signed challenge as the only user login—no separate password—while OAuth binds the ChatGPT
-connection to that verified Nostr identity. A hosted edition also needs per-user session isolation,
+approves each signature. The hosted prototype also has no OAuth or user accounts: it binds each AI MCP
+session to an extension-enabled browser with a short-lived, high-entropy capability URL. It still needs per-session isolation,
 abuse controls, privacy/retention operations, and an independent security review. See
 `LAUNCH_READINESS.md`, `COMPATIBILITY.md`, and `HOSTED_SERVICE.md`.
 
@@ -170,7 +168,7 @@ To connect this checkout directly to a local Codex host without installing a mar
 codex mcp add nostr-signer -- node /absolute/path/to/nostr-signer-chatgpt/mcp/server.mjs
 ```
 
-Then restart the ChatGPT desktop app/Codex host and use `/mcp` or MCP settings to verify the server. For a packaged install, use the included `plugin.json`, `mcp.json`, `.codex-plugin/plugin.json`, `.mcp.json`, skill, and committed `mcp/server.mjs` bundle in a local marketplace. The current OpenAI documentation distinguishes local Codex stdio support from ChatGPT web: ChatGPT Work/web needs a registered remote HTTPS MCP endpoint or Secure MCP Tunnel. This repository does not create or publish either.
+Then restart the ChatGPT desktop app/Codex host and use `/mcp` or MCP settings to verify the server. For a packaged install, use the included `plugin.json`, `mcp.json`, `.codex-plugin/plugin.json`, `.mcp.json`, skill, and committed `mcp/server.mjs` bundle in a local marketplace. The current OpenAI documentation distinguishes local Codex stdio support from ChatGPT web. This repository now builds a remote Streamable HTTP server, but no stable public HTTPS deployment has been published yet.
 
 OpenClaw currently documents support for Agent Plugin/Codex bundles. After downloading and unpacking
 the release, install the local directory (or the release archive, if your OpenClaw version accepts it),
@@ -312,7 +310,7 @@ See `VALIDATION.md` for the exact local evidence and its limits.
 - Signer `auth_url` challenges are not surfaced in v0.4.0; NIP-46 signers that rely on them may not complete pairing.
 - NIP-46 relay authentication, dynamic relay switching, offline queues, simultaneous third-party-client
   sessions, multi-account selection, and automatic event discovery are not included.
-- ChatGPT Work/web needs a remote/tunneled MCP transport, authentication, privacy disclosures, and workspace/public review.
+- ChatGPT Work/web needs a deployed remote HTTPS MCP transport, privacy disclosures, and workspace/public review. The hosted beta intentionally uses accountless capability sessions instead of OAuth.
 - Noornote v1.5.3 and YakiHonne web both completed live remote-signer login in the Codex in-app browser.
   No post, follow, direct message, encryption request, or publication was attempted, so those operations
   remain unverified on the named clients.

@@ -9,7 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=mcp/server.mjs",
+    "build": "tsc -p tsconfig.build.json && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=mcp/server.mjs && esbuild src/hosted.ts --bundle --platform=node --format=esm --target=node22 --outfile=mcp/hosted-server.mjs",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run validate:release && npm run build && npm run smoke:bundle",
     "demo": "tsx src/demo.ts",
     "format": "biome format --write .",
@@ -17,6 +17,7 @@
     "lint": "biome lint .",
     "smoke:bundle": "tsx scripts/smoke-bundle.ts",
     "start": "node --env-file-if-exists=.env mcp/server.mjs",
+    "start:hosted": "node --env-file-if-exists=.env mcp/hosted-server.mjs",
     "test": "vitest run tests/*.test.ts",
     "test:watch": "vitest tests/*.test.ts",
     "typecheck": "tsc --noEmit",

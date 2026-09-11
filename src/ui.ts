@@ -6,7 +6,7 @@ import type { NostrSignerService } from "./service.js";
 
 const MAX_BODY_BYTES = 160_000;
 
-function html(token: string): string {
+export function signerHtml(token: string): string {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-local' chrome-extension: moz-extension:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'">
@@ -22,8 +22,8 @@ function html(token: string): string {
 <h3>Or paste a bunker URI</h3><p class="muted">The URI is held only in process memory and is never logged.</p><label for="bunker">bunker:// URI</label><textarea id="bunker" rows="3" autocomplete="off" spellcheck="false"></textarea><button id="connect">Connect remote signer</button></section></details>
 <p class="warn">Never paste an nsec, seed phrase, or raw private key. This project intentionally rejects them.</p>
 </main><script nonce="local">
-const token=${JSON.stringify(token)}; const output=document.querySelector('#output'); let pending=null; let polling=false; let clientPending=null; let clientPolling=false; let clientLink='';
-async function call(path,body){const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json','x-nostr-ui-token':token},body:JSON.stringify(body)});const x=await r.json();if(!r.ok)throw new Error(x.error||'Request failed');return x}
+const token=${JSON.stringify(token)}; const base=location.pathname==='/'?'':location.pathname.endsWith('/')?location.pathname.slice(0,-1):location.pathname; const output=document.querySelector('#output'); let pending=null; let polling=false; let clientPending=null; let clientPolling=false; let clientLink='';
+async function call(path,body){const r=await fetch(base+path,{method:'POST',headers:{'content-type':'application/json','x-nostr-ui-token':token},body:JSON.stringify(body)});const x=await r.json();if(!r.ok)throw new Error(x.error||'Request failed');return x}
 function extensionApi(){if(!window.nostr)throw new Error('No NIP-07 extension detected. Open this URL in the browser profile where Alby or nos2x is installed.');return window.nostr}
 function showPending(operation){pending=operation;document.querySelector('#approval').hidden=!operation;document.querySelector('#request').textContent=operation?JSON.stringify(operation,null,2):''}
 async function poll(){if(polling)return;polling=true;try{const x=await call('/api/nip07/next',{});showPending(x.operation)}catch(e){document.querySelector('#extensionStatus').textContent=e.message}finally{polling=false}}
@@ -87,7 +87,7 @@ export async function startLocalSetupUi(
           "x-frame-options": "DENY",
           "referrer-policy": "no-referrer",
         });
-        response.end(html(token));
+        response.end(signerHtml(token));
         return;
       }
       if (request.method !== "POST" || request.headers["x-nostr-ui-token"] !== token) {

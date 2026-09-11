@@ -8,10 +8,10 @@ Assessment date: 2026-09-10
 |---|---|---|
 | Public GitHub source beta | **Live** | Public repository and v0.4.0 prerelease are available; claims remain limited to a local public beta |
 | Versioned downloadable local plugin | **Ready** | The v0.4.0 archive, checksum, extracted-manifest validation, and bundled-server startup passed |
-| OpenAI public plugin directory | **Not ready** | Requires hosted HTTPS MCP, verified identity/domain, Nostr-backed MCP OAuth, public URLs, review credentials, and live review cases |
-| Free hosted service | **Not ready** | Architecture exists; authentication, tenant isolation, operations, privacy, abuse controls, and review are not implemented |
+| OpenAI public plugin directory | **Not ready** | Requires production HTTPS MCP, verified identity/domain, public URLs, operational controls, and live review cases; the beta intentionally has no OAuth |
+| Free hosted service | **Prototype** | Accountless Streamable HTTP bridge and isolated capability sessions work locally; public HTTPS, capacity controls, monitoring, multi-instance routing, and review remain |
 | Claim that it "works for all" | **No** | Browser, signer, OS, relay, mobile, and hosted coverage is not universal |
-| Community announcement posts | **Drafted, not published** | Canonical URLs are filled; each public post still needs exact owner review and approval |
+| Community announcement posts | **Live** | Owner-approved event was accepted and independently read back from three public relays |
 
 ## Public-beta release gates
 

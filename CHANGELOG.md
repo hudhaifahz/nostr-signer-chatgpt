@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add an accountless Streamable HTTP hosted-bridge prototype with short-lived, isolated pairing capabilities.
+- Record the owner-approved public announcement and verified three-relay readback evidence.
+
 ## 0.4.0 — 2026-09-10
 
 - Add a loopback-only Grynvault browser handoff for signing into the live account dashboard from the

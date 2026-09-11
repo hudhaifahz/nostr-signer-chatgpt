@@ -68,15 +68,17 @@ NIP-46.
 - A real NIP-07 extension completed public-key and signing requests, but its product name/version was
   not captured. Alby- and nos2x-specific claims remain unverified.
 - No real Amber, nsec.app, Clave, or other bunker-compatible signer was paired during this validation.
-- No user event was published as a public note. The NIP-46 live test necessarily exchanged encrypted
-  kind:24133 RPC events through public relays.
-- ChatGPT Work/web remote HTTPS or Secure MCP Tunnel connectivity was not configured or tested.
+- Public announcement event `4d34405ebb3063ddad99e6c41b258172fe4699a86179d62e507fc6c4c0b21703`
+  was accepted by `nos.lol`, `nostr.mom`, and `relay.primal.net`; independent exact-ID readback and
+  signature verification succeeded on all three relays.
+- The accountless hosted transport gave two MCP clients distinct 256-bit pairing capabilities; both
+  signer pages loaded and an unknown capability returned 404. Public HTTPS remains untested.
 - OpenClaw installation and tool discovery were not available to test in this environment.
 - The production Grynvault v117 health check and exact in-app browser handoff passed at commit
   `7517fea8…`. The plugin's invoice creation tools were not invoked against production, and no invoice
   was created.
-- The personal Codex marketplace installation is live locally. Public catalog submission and hosted
-  ChatGPT distribution were not performed.
+- The personal Codex marketplace installation is live locally. The hosted transport is implemented,
+  but production deployment and public catalog submission were not performed.
 
 One live local NIP-07 flow was observed on 2026-09-10, but the extension name/version was not captured.
 That observation is not enough for a named provider claim. Noornote and YakiHonne login compatibility

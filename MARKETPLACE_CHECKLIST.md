@@ -1,6 +1,6 @@
 # Marketplace and publication checklist
 
-This checklist is deliberately not complete in v0.4.0. Public submission requires a hosted service,
+This checklist is deliberately not complete in v0.4.0. Public submission requires the hosted prototype to become a production service,
 current evidence, verified identity, and separate owner approval.
 
 ## Security and privacy
@@ -12,13 +12,13 @@ current evidence, verified identity, and separate owner approval.
 - [ ] Live test that an `nsec` is never requested or accepted, and red-team encoded/private-key variants.
 - [ ] Publish and verify a private security-reporting contact with response targets.
 - [ ] Publish privacy and retention disclosures covering model-visible tool inputs, relay metadata, local logs, and any hosted service.
-- [ ] If hosted, add authentication, tenant isolation, rate limits, abuse controls, encrypted storage policy, deletion, monitoring, and incident response.
+- [ ] If hosted, finish capability-session isolation, rate limits, abuse controls, deletion, monitoring, multi-instance routing, and incident response. The beta intentionally has no OAuth or user accounts.
 
 ## Signer and relay evidence
 
 - [ ] Record signer name/version, pairing mode, OS/device, relay set, connection approval, `get_public_key`, kind:1 signature, rejection path, NIP-44 operations, and disconnect.
 - [x] Verify returned event fields, hash, signature, signer public key, and one-use intent behavior.
-- [ ] Record at least two relay ACK outcomes and independent readback by event ID; distinguish ACK from durable propagation.
+- [x] Record at least two relay ACK outcomes and independent readback by event ID; three relays accepted and returned the exact verified event.
 - [ ] Test timeout, offline signer, stale pairing, mismatched signer, relay rejection, malformed response, and all-relays-failed behavior.
 - [x] Update the README compatibility table using only captured evidence.
 
