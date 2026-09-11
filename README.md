@@ -2,7 +2,18 @@
 
 A local-first, open-source signer bridge that lets ChatGPT Work or Codex request Nostr signatures from Alby, nos2x, another NIP-07 browser extension, or an advanced NIP-46 remote signer. The signer keeps the private key. This project never needs, accepts, stores, logs, or transmits an `nsec`.
 
-> Release status: v0.2.0 local release candidate. The simulated path and loopback bridge are tested. Live compatibility with current extension releases, NIP-46 signers, and public relays still needs to be recorded.
+> Release status: v0.3.0 local public-beta candidate. The simulated path, loopback bridge, portable release gate, and annotated MCP surface are tested locally. One live local NIP-07 flow was reported on 2026-09-10, but its browser and signer versions were not captured, so provider-specific compatibility and public relay readback remain unverified.
+
+## Will it work for everyone?
+
+Not yet. The current release is for desktop users who can run Node.js 22+, connect a local stdio MCP
+server, and open the approval page in a Chrome- or Firefox-family profile with a compatible NIP-07
+extension. It is not a hosted ChatGPT-web service, mobile signer, or unattended signing daemon.
+
+The free local plugin is the right first public release because each user keeps the key and runs the
+bridge. A free hosted edition is possible without holding private keys, but it needs a public HTTPS MCP
+endpoint, OAuth, per-user session isolation, abuse controls, privacy/retention operations, and an
+independent security review. See `LAUNCH_READINESS.md`, `COMPATIBILITY.md`, and `HOSTED_SERVICE.md`.
 
 ## The ordinary-user journey
 
@@ -48,15 +59,18 @@ The code separates the signer interface, session/intent state, relay gateway, MC
 - In-memory-only signer sessions. Restarting or disconnecting forgets pairing material and prepared events.
 - A localhost-only setup page with a per-process anti-CSRF token, request size limit, no external scripts, and no persistence.
 - Redacted structured logs and hard rejection of `nsec`-like input.
+- Signed Grynvault account-dashboard access plus separately prepared/confirmed supporter and 2,000-sat
+  `name@frontiercrown.com` NIP-05 invoice requests. An invoice response is always reported as pending,
+  never as payment or settlement.
 - Portable Agent Plugins manifests plus the scaffolded Codex compatibility manifest.
 - A deterministic safe simulated signer/relay path for CI and onboarding.
 
 ## Local setup
 
-Requirements: Node.js 22 or later and npm.
+Requirements: Node.js 22 or later and npm. Use a test Nostr identity for the public beta.
 
 ```bash
-npm install
+npm ci
 cp .env.example .env
 npm run build
 npm start
@@ -92,6 +106,19 @@ codex mcp add nostr-signer -- node /absolute/path/to/nostr-signer-chatgpt/mcp/se
 ```
 
 Then restart the ChatGPT desktop app/Codex host and use `/mcp` or MCP settings to verify the server. For a packaged install, use the included `plugin.json`, `mcp.json`, `.codex-plugin/plugin.json`, `.mcp.json`, skill, and committed `mcp/server.mjs` bundle in a local marketplace. The current OpenAI documentation distinguishes local Codex stdio support from ChatGPT web: ChatGPT Work/web needs a registered remote HTTPS MCP endpoint or Secure MCP Tunnel. This repository does not create or publish either.
+
+OpenClaw currently documents support for Agent Plugin/Codex bundles. After downloading and unpacking
+the release, install the local directory (or the release archive, if your OpenClaw version accepts it),
+inspect the plugin, and restart OpenClaw:
+
+```bash
+openclaw plugins install /absolute/path/to/nostr-signer-chatgpt
+openclaw plugins inspect nostr-signer-chatgpt
+```
+
+This package has the required bundle layout, but an OpenClaw installation was not available in this
+validation environment. Treat it as intended compatibility until the live install, tool discovery, and
+signer round-trip are captured in `COMPATIBILITY.md`.
 
 Relevant OpenAI guidance: [plugin packaging](https://developers.openai.com/plugins/build/plugins), [connecting and testing](https://developers.openai.com/plugins/deploy/connect-chatgpt), and [Codex MCP configuration](https://learn.chatgpt.com/docs/extend/mcp).
 
@@ -129,6 +156,31 @@ Relevant OpenAI guidance: [plugin packaging](https://developers.openai.com/plugi
 | `nip44_encrypt` / `nip44_decrypt` | Ask signer for NIP-44 operation | Explicit confirmation; no plaintext logging |
 | `query_events` | Read verified public kind 0/1 events | Bounded filters and result count |
 | `disconnect_signer` | Forget session and intents | Explicit confirmation |
+| `get_grynvault_account_dashboard` | Sign and retrieve the connected pubkey's read-only Grynvault dashboard | Explicit signed-access confirmation; creates no invoice |
+| `prepare_grynvault_supporter_invoice` | Prepare an exact 21–1,000,000-sat donation or 2,100-sat/30-day request | No signing or invoice creation |
+| `create_grynvault_supporter_invoice` | Sign and submit one prepared supporter request | Separate explicit invoice-creation confirmation; returns pending only |
+| `prepare_grynvault_nip05_invoice` | Check and prepare a 2,000-sat `name@frontiercrown.com` request | No signing, reservation, or invoice creation |
+| `create_grynvault_nip05_invoice` | Sign and submit one prepared NIP-05 request | Separate explicit invoice-creation confirmation; no activation claim |
+
+## Grynvault integration
+
+Grynvault authorization uses a fresh kind `27235` Nostr HTTP-auth event bound to the exact HTTPS URL,
+POST method, server challenge, and SHA-256 hash of the exact JSON body. The same NIP-07/NIP-46 signer
+and signature-verification pipeline is used; the resulting authorization is sent only to the fixed
+Grynvault production API origin.
+
+Supporter membership and paid NIP-05 remain different products. A one-time supporter donation can be
+21 through 1,000,000 sats, the optional 30-day plan is 2,100 sats, and a
+`name@frontiercrown.com` invoice is 2,000 sats. Creating an invoice does not pay it. A checkout URL,
+browser redirect, or `pending` response does not activate a supporter entitlement or NIP-05 identifier;
+only separately verified BTCPay settlement can do that.
+
+The v115 owner reports production deployed at commit `84e5b7cbe91bdbbdd0118228e3bd4156e8411b65`.
+The hostname still returned `ENOTFOUND` from this validation environment on 2026-09-10, so the plugin's
+exact contract is mocked and passing but its signed production round-trip is not independently proven
+here. No signed POST or invoice creation was used for validation.
+
+See `GRYNVAULT_INTEGRATION.md` for the exact MCP inputs, HTTP bodies, and signature tags.
 
 ## Signer status
 
@@ -179,22 +231,24 @@ GitHub and Cloudflare secret stores protect values at rest, but signing code mus
 | `npm start` | Start the real MCP server and local setup page |
 | `npm run demo` | Run the fully simulated end-to-end demo |
 | `npm run smoke:bundle` | Start the distributable bundle and verify its MCP tools |
-| `npm run validate:skill` | Validate the bundled Nostr operating skill |
-| `npm run validate:plugin` | Run the installed plugin-creator validator |
+| `npm run validate:release` | Check portable manifests, version consistency, required release files, and secret-shaped content |
 | `npm run check` | Run the complete release-candidate gate |
 
 See `VALIDATION.md` for the exact local evidence and its limits.
 
 ## Limitations and roadmap
 
-- Live Alby, nos2x, NIP-46 signer, and relay compatibility is not yet proven.
+- One live local NIP-07 flow was user-reported, but the signer/browser versions were not captured. Live Alby, nos2x, NIP-46 signer, and relay-specific compatibility is not yet proven.
 - Sessions are deliberately non-persistent; reconnect after every process restart or expiry.
 - The NIP-07 browser tab must remain open because browser extensions expose `window.nostr` only to browser pages.
 - An MCP Apps iframe is not used for signing because it does not automatically inherit the user's ordinary browser extensions or their permission model.
-- Signer `auth_url` challenges are not surfaced in v0.2.0; NIP-46 signers that rely on them may not complete pairing.
+- Signer `auth_url` challenges are not surfaced in v0.3.0; NIP-46 signers that rely on them may not complete pairing.
 - NIP-46 relay authentication, signer relay switching, offline queues, multi-account selection, and automatic event discovery are not included.
 - ChatGPT Work/web needs a remote/tunneled MCP transport, authentication, privacy disclosures, and workspace/public review.
-- Future work: real compatibility matrix, native-browser handoff helper, authenticated streamable HTTP, WebMCP/site-tools adapter, and optional hardware-backed local signer adapter that still never exports a private key.
+- The v115 Grynvault deployment is owner-reported at exact commit `84e5b7c…`, but its hostname did not
+  resolve from this validation environment; the signed production path remains independently unproven.
+  Supporter/NIP-05 creation was not called live, so no invoice or payment was created.
+- Future work: real compatibility matrix, native-browser handoff helper, the separately gated hosted architecture in `HOSTED_SERVICE.md`, a verified OpenClaw install, and an optional hardware-backed local signer adapter that still never exports a private key.
 
 ## License
 
@@ -202,4 +256,7 @@ Apache License 2.0. It is permissive for broad reuse while adding an explicit pa
 
 ## Contributing and security
 
-Read `CONTRIBUTING.md`, `SECURITY.md`, `DECISIONS.md`, `MARKETPLACE_CHECKLIST.md`, and `THIRD_PARTY_NOTICES.md` before changing protocol, trust-boundary, packaging, or dependency code.
+Read `CONTRIBUTING.md`, `SECURITY.md`, `DECISIONS.md`, `COMPATIBILITY.md`,
+`LAUNCH_READINESS.md`, `MARKETPLACE_CHECKLIST.md`, and `THIRD_PARTY_NOTICES.md` before changing
+protocol, trust-boundary, packaging, or dependency code. Public launch drafts are in `LAUNCH_KIT.md`;
+they have not been posted.

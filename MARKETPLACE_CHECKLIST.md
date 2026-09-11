@@ -1,6 +1,7 @@
 # Marketplace and publication checklist
 
-This checklist is deliberately not complete in v0.2.0. Public submission requires a separate human approval.
+This checklist is deliberately not complete in v0.3.0. Public submission requires a hosted service,
+current evidence, verified identity, and separate owner approval.
 
 ## Security and privacy
 
@@ -24,18 +25,20 @@ This checklist is deliberately not complete in v0.2.0. Public submission require
 ## Product metadata and assets
 
 - [ ] Final publisher identity, repository, homepage, support, security, privacy, and terms URLs.
-- [ ] Final display name, short/long descriptions, capability labels, starter prompts, icon, light/dark logo, and screenshots.
+- [x] Draft display name, short/long descriptions, capability labels, starter prompts, and icon.
+- [ ] Final publisher-matched logo, light/dark variants, and screenshots.
 - [ ] Accessibility, localization, small-window, dark-mode, and no-custom-UI fallbacks reviewed.
 - [ ] No secrets, personal identifiers, real notes, or production signer screens in assets.
 
 ## Packaging and validation
 
-- [ ] Semver release selected; manifests and server report the same version.
-- [ ] `npm ci`, format, lint, typecheck, tests, build, plugin validator, MCP Inspector, and package-content inspection pass from a clean checkout.
+- [x] Semver release selected; manifests and server source report the same version.
+- [ ] `npm ci`, format, lint, typecheck, tests, build, validators, MCP Inspector, and package-content inspection pass from a clean checkout.
 - [ ] Portable Agent Plugins manifests and OpenAI compatibility overlay validate on target surfaces.
 - [ ] Hosted streamable-HTTP endpoint or reviewed Secure MCP Tunnel passes initialization, tool discovery, schema, auth, and confirmation tests.
 - [ ] `.app.json` contains the correct registered MCP technical ID when ChatGPT developer registration exists.
 - [ ] SBOM/provenance and third-party notices prepared if required.
+- [x] Five positive and three negative submission cases drafted in `OPENAI_SUBMISSION.md`.
 
 ## Approval gates
 

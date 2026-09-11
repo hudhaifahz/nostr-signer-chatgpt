@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { GrynvaultService } from "./grynvault.js";
 import { publicError, type SafeLogger } from "./security.js";
 import type { NostrSignerService } from "./service.js";
 
@@ -21,12 +22,16 @@ function failure(error: unknown, logger: SafeLogger) {
   return { isError: true, content: [{ type: "text" as const, text: publicError(error).message }] };
 }
 
-export function createMcpServer(service: NostrSignerService, logger: SafeLogger): McpServer {
+export function createMcpServer(
+  service: NostrSignerService,
+  logger: SafeLogger,
+  grynvault = new GrynvaultService(service),
+): McpServer {
   const server = new McpServer(
-    { name: "nostr-signer-chatgpt", version: "0.2.0" },
+    { name: "nostr-signer-chatgpt", version: "0.3.0" },
     {
       instructions:
-        "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned.",
+        "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned. Grynvault account access is read-only but still requires signed-access confirmation. Grynvault invoice preparation never creates an invoice; only the separate create tool may do so after explicit confirmation. A pending invoice or checkout redirect is never payment, settlement, entitlement, or NIP-05 activation evidence.",
     },
   );
 
@@ -57,6 +62,7 @@ export function createMcpServer(service: NostrSignerService, logger: SafeLogger)
       title: "Get signer status",
       description: "Check whether a user-controlled NIP-07 or NIP-46 signer is connected.",
       inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async () => result(service.status()),
   );
@@ -103,6 +109,7 @@ export function createMcpServer(service: NostrSignerService, logger: SafeLogger)
       title: "Get public key",
       description: "Return the public key exposed by the currently paired signer.",
       inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async () => {
       try {
@@ -295,14 +302,126 @@ export function createMcpServer(service: NostrSignerService, logger: SafeLogger)
     },
   );
 
+  server.registerTool(
+    "get_grynvault_account_dashboard",
+    {
+      title: "Get signed Grynvault account dashboard",
+      description:
+        "Read the connected Nostr identity's Grynvault supporter, payment, and NIP-05 dashboard using a short-lived signed authorization. This does not create an invoice or change settlement.",
+      inputSchema: {
+        confirm_account_access: confirm.describe(
+          "Must be true only after the user approved signing a read-only Grynvault account request.",
+        ),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ confirm_account_access }) => {
+      try {
+        return result(await grynvault.accountDashboard(confirm_account_access));
+      } catch (error) {
+        return failure(error, logger);
+      }
+    },
+  );
+
+  server.registerTool(
+    "prepare_grynvault_supporter_invoice",
+    {
+      title: "Prepare Grynvault supporter invoice",
+      description:
+        "Prepare an exact, short-lived signed-authorization request for a one-time donation of 21 to 1,000,000 sats or the fixed 2,100-sat 30-day membership. Does not sign, create, pay, or settle an invoice.",
+      inputSchema: {
+        plan: z.enum(["basic_once", "member_monthly"]),
+        donation_sats: z.number().int().min(21).max(1_000_000).optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ plan, donation_sats }) => {
+      try {
+        return result(await grynvault.prepareSupporterInvoice(plan, donation_sats));
+      } catch (error) {
+        return failure(error, logger);
+      }
+    },
+  );
+
+  server.registerTool(
+    "create_grynvault_supporter_invoice",
+    {
+      title: "Create Grynvault supporter invoice",
+      description:
+        "After separate explicit user confirmation, sign the prepared authorization and create exactly one pending Grynvault supporter invoice. Does not pay it and never treats a redirect as settlement.",
+      inputSchema: {
+        operation_id: z.string().uuid(),
+        confirm_invoice_creation: confirm,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ operation_id, confirm_invoice_creation }) => {
+      try {
+        return result(
+          await grynvault.createSupporterInvoice(operation_id, confirm_invoice_creation),
+        );
+      } catch (error) {
+        return failure(error, logger);
+      }
+    },
+  );
+
+  server.registerTool(
+    "prepare_grynvault_nip05_invoice",
+    {
+      title: "Prepare Frontier Crown NIP-05 invoice",
+      description:
+        "Check and normalize a name@frontiercrown.com identifier, then prepare its exact 2,000-sat invoice authorization. Does not sign, reserve the name, create, pay, or settle an invoice.",
+      inputSchema: {
+        name: z
+          .string()
+          .min(1)
+          .max(32)
+          .regex(/^[A-Za-z0-9_-]+$/u),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ name }) => {
+      try {
+        return result(await grynvault.prepareNip05Invoice(name));
+      } catch (error) {
+        return failure(error, logger);
+      }
+    },
+  );
+
+  server.registerTool(
+    "create_grynvault_nip05_invoice",
+    {
+      title: "Create Frontier Crown NIP-05 invoice",
+      description:
+        "After separate explicit user confirmation, sign the prepared authorization and create exactly one pending 2,000-sat name@frontiercrown.com invoice. Does not pay, settle, activate, or prove identity.",
+      inputSchema: {
+        operation_id: z.string().uuid(),
+        confirm_invoice_creation: confirm,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ operation_id, confirm_invoice_creation }) => {
+      try {
+        return result(await grynvault.createNip05Invoice(operation_id, confirm_invoice_creation));
+      } catch (error) {
+        return failure(error, logger);
+      }
+    },
+  );
+
   return server;
 }
 
 export async function serveMcp(
   service: NostrSignerService,
   logger: SafeLogger,
+  grynvault?: GrynvaultService,
 ): Promise<McpServer> {
-  const server = createMcpServer(service, logger);
+  const server = createMcpServer(service, logger, grynvault);
   await server.connect(new StdioServerTransport());
   return server;
 }

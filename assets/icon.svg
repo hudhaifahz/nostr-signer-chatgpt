@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Nostr Signer icon</title>
+  <desc id="desc">A violet keyhole protected by two mint approval arcs.</desc>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="32" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#24164f"/>
+      <stop offset="1" stop-color="#0f0a24"/>
+    </linearGradient>
+    <linearGradient id="arc" x1="120" y1="120" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8bf5ca"/>
+      <stop offset="1" stop-color="#58c7ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M153 185a134 134 0 0 1 206-40" fill="none" stroke="url(#arc)" stroke-width="34" stroke-linecap="round"/>
+  <path d="M359 327a134 134 0 0 1-206 40" fill="none" stroke="url(#arc)" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="256" cy="245" r="76" fill="#f7f4ff"/>
+  <circle cx="256" cy="233" r="25" fill="#24164f"/>
+  <path d="M238 251h36l20 95h-76l20-95Z" fill="#24164f"/>
+  <circle cx="133" cy="337" r="16" fill="#8bf5ca"/>
+  <circle cx="379" cy="175" r="16" fill="#58c7ff"/>
+</svg>

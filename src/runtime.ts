@@ -1,3 +1,4 @@
+import { GrynvaultApiClient, GrynvaultService } from "./grynvault.js";
 import { Nip07Bridge } from "./nip07.js";
 import { NostrRelayGateway, relayUrlsFromEnvironment } from "./relays.js";
 import { SafeLogger } from "./security.js";
@@ -5,7 +6,11 @@ import { NostrSignerService } from "./service.js";
 import { SignerSession } from "./session.js";
 import { Nip46SignerFactory } from "./signers.js";
 
-export function createRuntime(): { service: NostrSignerService; logger: SafeLogger } {
+export function createRuntime(): {
+  service: NostrSignerService;
+  grynvault: GrynvaultService;
+  logger: SafeLogger;
+} {
   const logger = new SafeLogger();
   const requestTimeoutMs = Number(process.env.NOSTR_REQUEST_TIMEOUT_MS ?? 120_000);
   const sessionTtlMs = Number(process.env.NOSTR_SESSION_TTL_MS ?? 1_800_000);
@@ -20,5 +25,6 @@ export function createRuntime(): { service: NostrSignerService; logger: SafeLogg
     relays,
     relayUrlsFromEnvironment(),
   );
-  return { service, logger };
+  const grynvault = new GrynvaultService(service, new GrynvaultApiClient());
+  return { service, grynvault, logger };
 }

@@ -1,0 +1,45 @@
+name: Bug or compatibility report
+description: Report a reproducible problem without sharing secrets.
+title: "[Bug]: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: Never include an nsec, seed phrase, pairing URI, token, private-message plaintext, or real account identifier.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node, AI host, browser, signer, and exact versions.
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: Evidence type
+      options:
+        - Live signer
+        - Mocked or simulated
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use a test identity and redact all sensitive values.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I verified this report contains no private key, seed phrase, pairing secret, token, or private-message plaintext.
+          required: true

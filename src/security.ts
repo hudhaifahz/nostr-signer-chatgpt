@@ -1,6 +1,7 @@
 const NSEC_PATTERN = /\bnsec1[023456789acdefghjklmnpqrstuvwxyz]{20,}\b/giu;
 const BUNKER_SECRET_PATTERN = /((?:bunker|nostrconnect):\/\/[^\s"']*?[?&]secret=)[^&\s"']+/giu;
 const BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/-]+=*/giu;
+const NOSTR_AUTH_PATTERN = /\bNostr\s+[A-Za-z0-9+/]+=*/giu;
 const SERIALIZED_SENSITIVE_VALUE_PATTERN =
   /("(?:content|plaintext|ciphertext)"\s*:\s*)"(?:[^"\\]|\\.)*"/giu;
 const SENSITIVE_KEY_PATTERN =
@@ -38,10 +39,12 @@ export function redactString(value: string): string {
   NSEC_PATTERN.lastIndex = 0;
   BUNKER_SECRET_PATTERN.lastIndex = 0;
   BEARER_PATTERN.lastIndex = 0;
+  NOSTR_AUTH_PATTERN.lastIndex = 0;
   return value
     .replace(NSEC_PATTERN, "[REDACTED_NSEC]")
     .replace(BUNKER_SECRET_PATTERN, "$1[REDACTED]")
     .replace(BEARER_PATTERN, "Bearer [REDACTED]")
+    .replace(NOSTR_AUTH_PATTERN, "Nostr [REDACTED]")
     .replace(SERIALIZED_SENSITIVE_VALUE_PATTERN, '$1"[REDACTED]"');
 }
 

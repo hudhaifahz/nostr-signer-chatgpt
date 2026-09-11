@@ -1,6 +1,6 @@
 {
   "name": "nostr-signer-chatgpt",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local-first NIP-07 and NIP-46 signer bridge for ChatGPT Work and Codex",
   "type": "module",
   "private": true,
@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=mcp/server.mjs",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build && npm run smoke:bundle && npm run validate:skill && npm run validate:plugin",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run validate:release && npm run build && npm run smoke:bundle",
     "demo": "tsx src/demo.ts",
     "format": "biome format --write .",
     "format:check": "biome format .",
@@ -20,8 +20,7 @@
     "test": "vitest run tests/*.test.ts",
     "test:watch": "vitest tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "validate:plugin": "uv run --with pyyaml python /Users/kode/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py .",
-    "validate:skill": "uv run --with pyyaml python /Users/kode/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/nostr-signer"
+    "validate:release": "tsx scripts/validate-release.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

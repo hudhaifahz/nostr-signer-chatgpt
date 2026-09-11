@@ -2,7 +2,7 @@
   "mcpServers": {
     "nostr-signer": {
       "title": "Nostr Signer",
-      "description": "Pair a user-controlled NIP-46 signer, approve signatures, and publish verified Nostr events without handling an nsec.",
+      "description": "Pair a user-controlled NIP-07 or NIP-46 signer, approve verified Nostr signatures, and optionally authorize Grynvault account or invoice requests without handling an nsec.",
       "command": "node",
       "args": ["--env-file-if-exists=.env", "./mcp/server.mjs"],
       "cwd": "."

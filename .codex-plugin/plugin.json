@@ -1,6 +1,6 @@
 {
   "name": "nostr-signer-chatgpt",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sign with Alby, nos2x, or a remote signer without exposing an nsec.",
   "author": {
     "name": "Nostr Signer contributors"
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Nostr Signer",
     "shortDescription": "Approve Nostr signatures with your own signer.",
-    "longDescription": "Connect an Alby, nos2x, or compatible NIP-07 browser extension through a loopback-only approval page. A remote NIP-46 signer remains available as an advanced fallback. Review exact events, approve signatures in the signer, and publish only with separate confirmation. Private keys never enter the plugin.",
+    "longDescription": "Connect an Alby, nos2x, or compatible NIP-07 browser extension through a loopback-only approval page. A remote NIP-46 signer remains available as an advanced fallback. Review exact events, approve signatures in the signer, publish only with separate confirmation, and authorize Grynvault account or invoice requests without exposing a key. Pending invoices are never reported as settled.",
     "developerName": "Nostr Signer contributors",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],

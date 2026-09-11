@@ -25,6 +25,9 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 4. **Plugin ↔ Nostr relays:** relays are untrusted for confidentiality, availability, ordering, completeness, and acknowledgements. NIP-46 payloads are encrypted and events are signature-verified.
 5. **Relays ↔ signer:** the signer is the signing authority and must present its own approval UI according to its policy. The plugin cannot and must not bypass it.
 6. **Signer and build chain:** the selected NIP-07 extension or NIP-46 signer is trusted to protect the private key and enforce its policy. `nostr-tools`, the MCP SDK, npm packages, and the host runtime are trusted code dependencies and require review and updates.
+7. **Plugin ↔ Grynvault API:** the API is a fixed HTTPS destination. Signed account reads and invoice
+   writes are authorized with exact short-lived Nostr events; API responses and payment state remain
+   untrusted until independently verified.
 
 ## Threats and controls
 
@@ -44,6 +47,7 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 | Forged or stale NIP-07 response | One pending request, random request ID, session generation, timeout, expected signer pubkey, exact signed-event verification | A malicious extension with page access can return hostile data, which is rejected when invalid |
 | Sensitive errors/logs | Structured redaction for nsec, URI secrets, bearer tokens, plaintext, and event content; no request-body logging | Dependency-level console output may change; audit upgrades |
 | Denial of service | Bounded body, content, tags, relays, filters, query results, and timeouts | Public relays and signers remain availability dependencies |
+| Duplicate or falsely settled invoice | Prepare/create separation; one-use operation; exact payload hash; no automatic retry; redirects rejected; pending-only result | A timeout after submission can leave the outcome unknown; inspect the account before retrying |
 
 ## Confirmation expectations
 
@@ -69,6 +73,21 @@ Do not put a Nostr private key in GitHub Actions secrets, Cloudflare secrets, en
 - Relay URLs with credentials, query strings, or fragments are rejected.
 - Keep relay sets small and user-configurable. Do not infer that a no-result query proves an event does not exist.
 - Relay ACK means that relay accepted the event at that moment. It does not prove durable retention, propagation, moderation status, or visibility in every client.
+
+## Grynvault account and invoice rules
+
+- Grynvault requests use a fixed HTTPS API origin; callers cannot supply a destination URL.
+- Signed HTTP authorization binds kind 27235 to the exact URL, POST method, challenge, and SHA-256 hash
+  of the exact JSON body.
+- Account-dashboard access requires explicit signature confirmation but is classified read-only and
+  cannot create an invoice.
+- Supporter and NIP-05 invoice preparation creates only a short-lived local operation. A separate tool
+  and separate explicit confirmation are required to sign and submit it.
+- An operation is one-use. Ambiguous network outcomes are not retried automatically.
+- Redirects are rejected. `pending`, an invoice ID, or a checkout link is never reported as payment,
+  settlement, entitlement activation, or NIP-05 activation.
+- Supporter plans and paid NIP-05 are separate products; a NIP-05 identifier is not proof of human or
+  legal identity, game entitlement, or payment authority.
 
 ## Logging and retention
 

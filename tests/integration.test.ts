@@ -52,19 +52,31 @@ describe("simulated end-to-end integration", () => {
       [
         "begin_nostrconnect_pairing",
         "connect_bunker",
+        "create_grynvault_nip05_invoice",
+        "create_grynvault_supporter_invoice",
         "disconnect_signer",
+        "get_grynvault_account_dashboard",
         "get_public_key",
         "get_setup_url",
         "get_signer_status",
         "nip44_decrypt",
         "nip44_encrypt",
         "prepare_event",
+        "prepare_grynvault_nip05_invoice",
+        "prepare_grynvault_supporter_invoice",
         "prepare_note",
         "publish_event",
         "query_events",
         "sign_event",
       ].sort(),
     );
+    for (const tool of tools.tools) {
+      expect(tool.annotations).toMatchObject({
+        readOnlyHint: expect.any(Boolean),
+        destructiveHint: expect.any(Boolean),
+        openWorldHint: expect.any(Boolean),
+      });
+    }
     const prepared = await client.callTool({
       name: "prepare_note",
       arguments: { content: "MCP smoke test" },

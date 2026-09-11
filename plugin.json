@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "nostr-signer-chatgpt",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sign with Alby, nos2x, or a remote signer without exposing an nsec.",
   "author": {
     "name": "Nostr Signer contributors"

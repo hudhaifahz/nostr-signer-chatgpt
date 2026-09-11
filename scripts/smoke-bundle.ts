@@ -19,8 +19,18 @@ const client = new Client({ name: "bundle-smoke-test", version: "1.0.0" });
 try {
   await client.connect(transport);
   const tools = await client.listTools();
-  if (tools.tools.length !== 13) {
-    throw new Error(`Expected 13 MCP tools, received ${tools.tools.length}.`);
+  if (tools.tools.length !== 18) {
+    throw new Error(`Expected 18 MCP tools, received ${tools.tools.length}.`);
+  }
+  for (const tool of tools.tools) {
+    const annotations = tool.annotations;
+    if (
+      typeof annotations?.readOnlyHint !== "boolean" ||
+      typeof annotations.destructiveHint !== "boolean" ||
+      typeof annotations.openWorldHint !== "boolean"
+    ) {
+      throw new Error(`Tool ${tool.name} is missing a required behavior annotation.`);
+    }
   }
   const setup = await client.callTool({ name: "get_setup_url", arguments: {} });
   const setupText = setup.content.find((item) => item.type === "text");
@@ -30,7 +40,7 @@ try {
     throw new Error("Bundled MCP server did not expose its loopback setup URL.");
   }
   process.stdout.write(
-    `Bundled MCP server exposed ${tools.tools.length} tools and a loopback setup URL.\n`,
+    `Bundled MCP server exposed ${tools.tools.length} annotated tools and a loopback setup URL.\n`,
   );
 } finally {
   await client.close();

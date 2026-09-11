@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — 2026-09-10
+
+- Prepare a claim-safe local public beta without claiming universal or hosted compatibility.
+- Make the release gate portable by removing machine-specific validator paths and adding a repository-local validator.
+- Require and smoke-test behavior annotations on every MCP tool.
+- Add Node 22/24 CI, compatibility evidence, privacy, terms, support, hosted-service gates, OpenAI submission cases, launch readiness, community drafts, and a production-ready SVG icon.
+- Keep npm publication disabled and all public posting/deployment behind explicit owner approval.
+- Add signed read-only Grynvault account access and two-stage supporter/NIP-05 invoice tools using the
+  existing signer boundary, one-use authorization, a fixed API origin, redirect rejection, and explicit
+  pending-versus-settled reporting.
+
 ## 0.2.0 — 2026-09-10
 
 - Make the loopback NIP-07 browser-extension bridge the recommended signer path.
