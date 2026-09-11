@@ -2,7 +2,7 @@
 
 A local-first, open-source signer bridge that lets ChatGPT Work or Codex request Nostr signatures from Alby, nos2x, another NIP-07 browser extension, or an advanced NIP-46 remote signer. The signer keeps the private key. This project never needs, accepts, stores, logs, or transmits an `nsec`.
 
-> Release status: v0.4.0 local public beta. Live Chrome-family NIP-07 public-key access and signing succeeded on 2026-09-10. A user-approved announcement was accepted and independently read back with a valid signature from `nos.lol`, `nostr.mom`, and `relay.primal.net`. An accountless hosted Streamable HTTP prototype is implemented and locally isolation-tested, but is not yet publicly deployed or submitted to the OpenAI directory.
+> Release status: v0.4.0 local public beta plus a live accountless hosted alpha. Live Chrome-family NIP-07 public-key access and signing succeeded on 2026-09-10. A user-approved announcement was accepted and independently read back with a valid signature from `nos.lol`, `nostr.mom`, and `relay.primal.net`. The hosted MCP endpoint at `https://signer.frontiercrown.com/mcp` completed external initialization, 19-tool discovery, and two-session pairing-page isolation tests. It has not yet been submitted to the OpenAI directory.
 
 ## Will it work for everyone?
 
@@ -168,7 +168,7 @@ To connect this checkout directly to a local Codex host without installing a mar
 codex mcp add nostr-signer -- node /absolute/path/to/nostr-signer-chatgpt/mcp/server.mjs
 ```
 
-Then restart the ChatGPT desktop app/Codex host and use `/mcp` or MCP settings to verify the server. For a packaged install, use the included `plugin.json`, `mcp.json`, `.codex-plugin/plugin.json`, `.mcp.json`, skill, and committed `mcp/server.mjs` bundle in a local marketplace. The current OpenAI documentation distinguishes local Codex stdio support from ChatGPT web. This repository now builds a remote Streamable HTTP server, but no stable public HTTPS deployment has been published yet.
+Then restart the ChatGPT desktop app/Codex host and use `/mcp` or MCP settings to verify the server. For a packaged install, use the included `plugin.json`, `mcp.json`, `.codex-plugin/plugin.json`, `.mcp.json`, skill, and committed `mcp/server.mjs` bundle in a local marketplace. The current OpenAI documentation distinguishes local Codex stdio support from ChatGPT web. The accountless hosted alpha is available at `https://signer.frontiercrown.com/mcp`; it uses short-lived capability sessions rather than OAuth.
 
 OpenClaw currently documents support for Agent Plugin/Codex bundles. After downloading and unpacking
 the release, install the local directory (or the release archive, if your OpenClaw version accepts it),

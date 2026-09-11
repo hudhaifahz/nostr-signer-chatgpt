@@ -9,7 +9,7 @@ Assessment date: 2026-09-10
 | Public GitHub source beta | **Live** | Public repository and v0.4.0 prerelease are available; claims remain limited to a local public beta |
 | Versioned downloadable local plugin | **Ready** | The v0.4.0 archive, checksum, extracted-manifest validation, and bundled-server startup passed |
 | OpenAI public plugin directory | **Not ready** | Requires production HTTPS MCP, verified identity/domain, public URLs, operational controls, and live review cases; the beta intentionally has no OAuth |
-| Free hosted service | **Prototype** | Accountless Streamable HTTP bridge and isolated capability sessions work locally; public HTTPS, capacity controls, monitoring, multi-instance routing, and review remain |
+| Free hosted service | **Live alpha** | Branded HTTPS, external MCP initialization, 19-tool discovery, and two isolated pairing sessions passed; shared rate limiting, monitoring, multi-instance routing, and review remain |
 | Claim that it "works for all" | **No** | Browser, signer, OS, relay, mobile, and hosted coverage is not universal |
 | Community announcement posts | **Live** | Owner-approved event was accepted and independently read back from three public relays |
 

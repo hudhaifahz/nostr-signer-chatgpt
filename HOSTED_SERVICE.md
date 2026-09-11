@@ -1,7 +1,7 @@
 # Free hosted service design
 
-This is the implementation contract for the hosted edition. An accountless Node.js prototype now
-exists in `mcp/hosted-server.mjs`; it is not yet a production deployment.
+This is the implementation contract for the hosted edition. The accountless Node.js bridge is live
+as an alpha at `https://signer.frontiercrown.com/mcp`; it is not yet directory-approved production.
 
 ## Product boundary
 
@@ -10,7 +10,7 @@ The recommended public offering has two editions:
 | Edition | Who runs the bridge | Key custody | Current state |
 |---|---|---|---|
 | Free local plugin | Each user | Browser extension or NIP-46 signer | Public-beta candidate |
-| Free hosted bridge | Project operator | Browser extension only; service never receives an `nsec` | Accountless prototype implemented; not deployed |
+| Free hosted bridge | Project operator | Browser extension only; service never receives an `nsec` | Live accountless alpha |
 
 "Free" means no user subscription is planned for the beta. It does not mean hosting has no operator
 cost or that unlimited usage can be promised.
