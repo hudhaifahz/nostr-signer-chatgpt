@@ -2,7 +2,7 @@
 
 A local-first, open-source signer bridge that lets ChatGPT Work or Codex request Nostr signatures from Alby, nos2x, another NIP-07 browser extension, or an advanced NIP-46 remote signer. The signer keeps the private key. This project never needs, accepts, stores, logs, or transmits an `nsec`.
 
-> Release status: v0.3.0 local public-beta candidate. The simulated path, loopback bridge, portable release gate, and annotated MCP surface are tested locally. One live local NIP-07 flow was reported on 2026-09-10, but its browser and signer versions were not captured, so provider-specific compatibility and public relay readback remain unverified.
+> Release status: v0.3.0 local public-beta candidate. The simulated path, loopback bridge, portable release gate, annotated MCP surface, and Grynvault in-app browser handoff are tested locally. One live local NIP-07 flow was reported on 2026-09-10, but its browser and signer versions were not captured, so provider-specific compatibility and public relay readback remain unverified.
 
 ## Will it work for everyone?
 

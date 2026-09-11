@@ -11328,6 +11328,15 @@ var RESPONSE_LIMIT = 256e3;
 var hex64 = external_exports.string().regex(/^[0-9a-f]{64}$/u);
 var httpsUrl = external_exports.string().url().refine((value) => new URL(value).protocol === "https:");
 var challengeSchema = external_exports.object({ challenge: hex64, authUrl: httpsUrl });
+var accountHandoffChallengeSchema = challengeSchema.extend({
+  code: external_exports.string().regex(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{12}$/u),
+  expiresAt: external_exports.string().datetime()
+});
+var accountHandoffApprovalSchema = external_exports.object({
+  status: external_exports.literal("approved"),
+  requestId: external_exports.string().uuid(),
+  expiresAt: external_exports.string().datetime()
+});
 var availabilitySchema = external_exports.object({
   name: external_exports.string(),
   identifier: external_exports.string(),
@@ -11392,6 +11401,16 @@ var GrynvaultApiClient = class {
   async accountChallenge() {
     return this.challenge("/api/supporter/account/challenge", "/api/supporter/account");
   }
+  async accountHandoffChallenge(code) {
+    const value = accountHandoffChallengeSchema.parse(
+      await this.json("/api/supporter/account/handoff/challenge", {
+        method: "POST",
+        body: JSON.stringify({ code })
+      })
+    );
+    this.assertAuthorizationUrl(value.authUrl, "/api/supporter/account/handoff/approve");
+    return value;
+  }
   async nip05Challenge() {
     return this.challenge("/api/supporter/nip05/challenge", "/api/supporter/nip05/checkout");
   }
@@ -11402,6 +11421,15 @@ var GrynvaultApiClient = class {
   }
   async account(authUrl, body, signed) {
     return accountSchema.parse(
+      await this.json(authUrl, {
+        method: "POST",
+        body: JSON.stringify(body),
+        authorization: authorization(signed)
+      })
+    );
+  }
+  async approveAccountHandoff(authUrl, body, signed) {
+    return accountHandoffApprovalSchema.parse(
       await this.json(authUrl, {
         method: "POST",
         body: JSON.stringify(body),
@@ -11429,11 +11457,14 @@ var GrynvaultApiClient = class {
   }
   async challenge(challengePath, authPath) {
     const value = challengeSchema.parse(await this.json(challengePath));
-    const url = new URL(value.authUrl);
+    this.assertAuthorizationUrl(value.authUrl, authPath);
+    return value;
+  }
+  assertAuthorizationUrl(authUrl, authPath) {
+    const url = new URL(authUrl);
     if (url.origin !== this.base.origin || url.pathname !== authPath || url.search !== "" || url.hash !== "") {
       throw new Error("Grynvault returned an unexpected authorization URL.");
     }
-    return value;
   }
   async json(path, options = {}) {
     const url = path instanceof URL ? path : new URL(path, this.base);
@@ -11492,6 +11523,33 @@ var GrynvaultService = class {
       access: "read_only",
       pubkey: signed.signedEvent.pubkey,
       account,
+      invoiceCreated: false,
+      settlementChanged: false
+    };
+  }
+  async approveBrowserHandoff(codeInput, confirmed) {
+    if (!confirmed)
+      throw new Error("Explicit confirmation is required to sign browser account access.");
+    const code = codeInput.toUpperCase().replace(/[^A-Z0-9]/gu, "");
+    if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{12}$/u.test(code)) {
+      throw new Error("The Grynvault browser handoff code is invalid.");
+    }
+    const challenge2 = await this.api.accountHandoffChallenge(code);
+    const body = { challenge: challenge2.challenge, code: challenge2.code };
+    const event = authEvent(challenge2.authUrl, body, this.now());
+    const intent = this.signer.prepareEvent(event);
+    const signed = await this.signer.signEvent(intent.intentId, true);
+    if (!signed.signedEvent) throw new Error("The signer did not return a verified event.");
+    const approved = await this.api.approveAccountHandoff(
+      challenge2.authUrl,
+      body,
+      signed.signedEvent
+    );
+    return {
+      ...approved,
+      access: "read_only",
+      pubkey: signed.signedEvent.pubkey,
+      browserReceivesAccountDashboard: true,
       invoiceCreated: false,
       settlementChanged: false
     };
@@ -28506,7 +28564,7 @@ function createMcpServer(service2, logger2, grynvault2 = new GrynvaultService(se
   const server = new McpServer(
     { name: "nostr-signer-chatgpt", version: "0.3.0" },
     {
-      instructions: "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned. Grynvault account access is read-only but still requires signed-access confirmation. Grynvault invoice preparation never creates an invoice; only the separate create tool may do so after explicit confirmation. A pending invoice or checkout redirect is never payment, settlement, entitlement, or NIP-05 activation evidence."
+      instructions: "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned. Grynvault account access and in-app browser handoffs are read-only but still require signed-access confirmation. A handoff code lets only the browser holding its separate secret claim the dashboard. Grynvault invoice preparation never creates an invoice; only the separate create tool may do so after explicit confirmation. A pending invoice or checkout redirect is never payment, settlement, entitlement, or NIP-05 activation evidence."
     }
   );
   server.registerTool(
@@ -28760,6 +28818,29 @@ function createMcpServer(service2, logger2, grynvault2 = new GrynvaultService(se
     async ({ confirm_account_access }) => {
       try {
         return result(await grynvault2.accountDashboard(confirm_account_access));
+      } catch (error2) {
+        return failure(error2, logger2);
+      }
+    }
+  );
+  server.registerTool(
+    "approve_grynvault_browser_handoff",
+    {
+      title: "Approve Grynvault in-app browser sign-in",
+      description: "Sign a short-lived, read-only Grynvault account handoff code so the browser tab that created it can receive its own dashboard. This does not create an invoice, publish a Nostr event, change settlement, or grant wallet custody.",
+      inputSchema: {
+        code: external_exports.string().min(12).max(20).describe(
+          "The one-time code displayed by the Grynvault portal, for example ABCD-EFGH-JKLM."
+        ),
+        confirm_browser_sign_in: confirm.describe(
+          "Must be true only after the user asked to sign the displayed Grynvault browser code."
+        )
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true }
+    },
+    async ({ code, confirm_browser_sign_in }) => {
+      try {
+        return result(await grynvault2.approveBrowserHandoff(code, confirm_browser_sign_in));
       } catch (error2) {
         return failure(error2, logger2);
       }

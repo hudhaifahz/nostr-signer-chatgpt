@@ -25,3 +25,5 @@ Do not silently retry a signing request. An expired, failed, or consumed signing
 Treat NIP-44 plaintext and decrypted output as sensitive. Use the encryption or decryption tools only for the user's explicit request and avoid repeating plaintext unnecessarily.
 
 The loopback bridge requests `window.nostr` operations only from its local page. The user must review and continue each request there; the installed extension may require another approval. Never imply that ChatGPT can click either approval or access the extension's private key.
+
+For a Grynvault account dashboard in the Codex in-app browser, have the user start **Sign in with Codex signer** on the portal and provide the exact one-time code it displays. Call `approve_grynvault_browser_handoff` only after the user explicitly asks to approve that code, with `confirm_browser_sign_in: true`. This signs read-only account access and lets only the browser tab holding the separate browser secret claim the dashboard. It must not create an invoice, publish an event, change settlement, or be described as wallet custody.

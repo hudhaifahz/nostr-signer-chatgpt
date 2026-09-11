@@ -19,8 +19,8 @@ const client = new Client({ name: "bundle-smoke-test", version: "1.0.0" });
 try {
   await client.connect(transport);
   const tools = await client.listTools();
-  if (tools.tools.length !== 18) {
-    throw new Error(`Expected 18 MCP tools, received ${tools.tools.length}.`);
+  if (tools.tools.length !== 19) {
+    throw new Error(`Expected 19 MCP tools, received ${tools.tools.length}.`);
   }
   for (const tool of tools.tools) {
     const annotations = tool.annotations;

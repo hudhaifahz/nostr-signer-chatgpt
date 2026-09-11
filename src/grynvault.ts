@@ -15,6 +15,15 @@ const httpsUrl = z
   .url()
   .refine((value) => new URL(value).protocol === "https:");
 const challengeSchema = z.object({ challenge: hex64, authUrl: httpsUrl });
+const accountHandoffChallengeSchema = challengeSchema.extend({
+  code: z.string().regex(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{12}$/u),
+  expiresAt: z.string().datetime(),
+});
+const accountHandoffApprovalSchema = z.object({
+  status: z.literal("approved"),
+  requestId: z.string().uuid(),
+  expiresAt: z.string().datetime(),
+});
 const availabilitySchema = z.object({
   name: z.string(),
   identifier: z.string(),
@@ -108,6 +117,17 @@ export class GrynvaultApiClient {
     return this.challenge("/api/supporter/account/challenge", "/api/supporter/account");
   }
 
+  async accountHandoffChallenge(code: string) {
+    const value = accountHandoffChallengeSchema.parse(
+      await this.json("/api/supporter/account/handoff/challenge", {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      }),
+    );
+    this.assertAuthorizationUrl(value.authUrl, "/api/supporter/account/handoff/approve");
+    return value;
+  }
+
   async nip05Challenge() {
     return this.challenge("/api/supporter/nip05/challenge", "/api/supporter/nip05/checkout");
   }
@@ -120,6 +140,20 @@ export class GrynvaultApiClient {
 
   async account(authUrl: string, body: { challenge: string }, signed: SignedEvent) {
     return accountSchema.parse(
+      await this.json(authUrl, {
+        method: "POST",
+        body: JSON.stringify(body),
+        authorization: authorization(signed),
+      }),
+    );
+  }
+
+  async approveAccountHandoff(
+    authUrl: string,
+    body: { challenge: string; code: string },
+    signed: SignedEvent,
+  ) {
+    return accountHandoffApprovalSchema.parse(
       await this.json(authUrl, {
         method: "POST",
         body: JSON.stringify(body),
@@ -160,7 +194,12 @@ export class GrynvaultApiClient {
 
   private async challenge(challengePath: string, authPath: string) {
     const value = challengeSchema.parse(await this.json(challengePath));
-    const url = new URL(value.authUrl);
+    this.assertAuthorizationUrl(value.authUrl, authPath);
+    return value;
+  }
+
+  private assertAuthorizationUrl(authUrl: string, authPath: string) {
+    const url = new URL(authUrl);
     if (
       url.origin !== this.base.origin ||
       url.pathname !== authPath ||
@@ -169,7 +208,6 @@ export class GrynvaultApiClient {
     ) {
       throw new Error("Grynvault returned an unexpected authorization URL.");
     }
-    return value;
   }
 
   private async json(
@@ -235,6 +273,34 @@ export class GrynvaultService {
       access: "read_only" as const,
       pubkey: signed.signedEvent.pubkey,
       account,
+      invoiceCreated: false,
+      settlementChanged: false,
+    };
+  }
+
+  async approveBrowserHandoff(codeInput: string, confirmed: boolean) {
+    if (!confirmed)
+      throw new Error("Explicit confirmation is required to sign browser account access.");
+    const code = codeInput.toUpperCase().replace(/[^A-Z0-9]/gu, "");
+    if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{12}$/u.test(code)) {
+      throw new Error("The Grynvault browser handoff code is invalid.");
+    }
+    const challenge = await this.api.accountHandoffChallenge(code);
+    const body = { challenge: challenge.challenge, code: challenge.code };
+    const event = authEvent(challenge.authUrl, body, this.now());
+    const intent = this.signer.prepareEvent(event);
+    const signed = await this.signer.signEvent(intent.intentId, true);
+    if (!signed.signedEvent) throw new Error("The signer did not return a verified event.");
+    const approved = await this.api.approveAccountHandoff(
+      challenge.authUrl,
+      body,
+      signed.signedEvent,
+    );
+    return {
+      ...approved,
+      access: "read_only" as const,
+      pubkey: signed.signedEvent.pubkey,
+      browserReceivesAccountDashboard: true,
       invoiceCreated: false,
       settlementChanged: false,
     };

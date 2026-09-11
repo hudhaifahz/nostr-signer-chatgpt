@@ -50,6 +50,7 @@ describe("simulated end-to-end integration", () => {
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual(
       [
+        "approve_grynvault_browser_handoff",
         "begin_nostrconnect_pairing",
         "connect_bunker",
         "create_grynvault_nip05_invoice",

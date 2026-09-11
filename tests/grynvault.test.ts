@@ -91,6 +91,50 @@ describe("Grynvault signed account and invoice operations", () => {
     );
   });
 
+  it("approves a read-only browser handoff bound to its exact code", async () => {
+    const challenge = "f".repeat(64);
+    const code = "23456789ABCD";
+    const requestId = "33333333-3333-4333-8333-333333333333";
+    const { grynvault, seen } = await harness([
+      {
+        payload: {
+          challenge,
+          code,
+          authUrl: "https://grynvault.test/api/supporter/account/handoff/approve",
+          expiresAt: "2026-09-11T03:00:00.000Z",
+        },
+      },
+      {
+        payload: {
+          status: "approved",
+          requestId,
+          expiresAt: "2026-09-11T03:00:00.000Z",
+        },
+      },
+    ]);
+
+    await expect(grynvault.approveBrowserHandoff(code, false)).rejects.toThrow(/confirmation/iu);
+    const approved = await grynvault.approveBrowserHandoff("2345-6789-abcd", true);
+    expect(approved).toMatchObject({
+      status: "approved",
+      requestId,
+      access: "read_only",
+      browserReceivesAccountDashboard: true,
+      invoiceCreated: false,
+      settlementChanged: false,
+    });
+    expect(seen).toHaveLength(2);
+    expect(seen[0]?.url).toBe("https://grynvault.test/api/supporter/account/handoff/challenge");
+    expect(JSON.parse(String(seen[0]?.init?.body))).toEqual({ code });
+    const event = signedAuthorization(seen[1] as SeenRequest);
+    expect(verifyEvent(event)).toBe(true);
+    expect(tag(event, "u")).toBe("https://grynvault.test/api/supporter/account/handoff/approve");
+    expect(tag(event, "challenge")).toBe(challenge);
+    expect(tag(event, "payload")).toBe(
+      createHash("sha256").update(JSON.stringify({ challenge, code })).digest("hex"),
+    );
+  });
+
   it("prepares separately, then creates one pending supporter invoice", async () => {
     const challenge = "b".repeat(64);
     const { grynvault, seen } = await harness([

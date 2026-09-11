@@ -31,7 +31,7 @@ export function createMcpServer(
     { name: "nostr-signer-chatgpt", version: "0.3.0" },
     {
       instructions:
-        "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned. Grynvault account access is read-only but still requires signed-access confirmation. Grynvault invoice preparation never creates an invoice; only the separate create tool may do so after explicit confirmation. A pending invoice or checkout redirect is never payment, settlement, entitlement, or NIP-05 activation evidence.",
+        "Never ask for or accept an nsec/private key. Prefer the local NIP-07 setup page with Alby, nos2x, or another browser extension; NIP-46 is an advanced fallback. Before signing, prepare an exact event and show it to the user. Call sign_event only after explicit user intent; approval still happens in the user's signer. Publish only after separate explicit publication intent. Never claim a post is live unless at least one relay acknowledgement is returned. Grynvault account access and in-app browser handoffs are read-only but still require signed-access confirmation. A handoff code lets only the browser holding its separate secret claim the dashboard. Grynvault invoice preparation never creates an invoice; only the separate create tool may do so after explicit confirmation. A pending invoice or checkout redirect is never payment, settlement, entitlement, or NIP-05 activation evidence.",
     },
   );
 
@@ -318,6 +318,35 @@ export function createMcpServer(
     async ({ confirm_account_access }) => {
       try {
         return result(await grynvault.accountDashboard(confirm_account_access));
+      } catch (error) {
+        return failure(error, logger);
+      }
+    },
+  );
+
+  server.registerTool(
+    "approve_grynvault_browser_handoff",
+    {
+      title: "Approve Grynvault in-app browser sign-in",
+      description:
+        "Sign a short-lived, read-only Grynvault account handoff code so the browser tab that created it can receive its own dashboard. This does not create an invoice, publish a Nostr event, change settlement, or grant wallet custody.",
+      inputSchema: {
+        code: z
+          .string()
+          .min(12)
+          .max(20)
+          .describe(
+            "The one-time code displayed by the Grynvault portal, for example ABCD-EFGH-JKLM.",
+          ),
+        confirm_browser_sign_in: confirm.describe(
+          "Must be true only after the user asked to sign the displayed Grynvault browser code.",
+        ),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    },
+    async ({ code, confirm_browser_sign_in }) => {
+      try {
+        return result(await grynvault.approveBrowserHandoff(code, confirm_browser_sign_in));
       } catch (error) {
         return failure(error, logger);
       }
