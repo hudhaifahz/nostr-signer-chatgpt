@@ -37,7 +37,7 @@ Additional checks passed:
 
 - Entrypoint: `mcp/server.mjs`
 - Size: 991,566 bytes
-- SHA-256: `220dd9854fc838e357b9ba2d7299f82e3b81fd8f971873cf412dfa9f90cdfaad`
+- SHA-256: `2a69da7807e2274f47fc48c347ce5c52e591cfc04e7f91098448eaef598e30d5`
 - Third-party bundle inventory: 13 packages with preserved license texts
 
 ## What this proves
